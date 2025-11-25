@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+/* Custom styles/* Notebook Theme - Vibrant Phase 2 */
+:root {
+  --color-paper: #FFFBF5;
+  --color-primary: #4338CA;
+  /* Indigo 700 */
+  --color-primary-light: #E0E7FF;
+  /* Indigo 100 */
+  --color-accent-1: #FB923C;
+  /* Orange 400 */
+  --color-accent-2: #10B981;
+  /* Emerald 500 */
+  --color-text: #374151;
+  /* Gray 700 */
+  --grid-color: #E5E7EB;
+  --margin-color: #FCA5A5;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-text);
+}
+
+/* Noise Texture Overlay */
+.texture-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.4;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
+}
+
+.tl-canvas {
+  background-color: var(--color-paper) !important;
+  /* Blue Grid Lines */
+  background-image:
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px) !important;
+  background-size: 30px 30px !important;
+  /* Standard notebook size */
+  background-position: -1px -1px !important;
+}
+
+/* Vertical Red Margin Line */
+.tl-canvas::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 80px;
+  /* Standard margin width */
+  width: 2px;
+  background-color: var(--margin-color);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Hide default Tldraw UI elements we don't want */
+.tlui-layout__top-left,
+.tlui-layout__top-center,
+.tlui-help-menu {
+  display: none !important;
+}
