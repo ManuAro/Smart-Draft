@@ -1,53 +1,122 @@
-import { BookOpen, Calculator, Atom, FlaskConical, History, Languages } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { FolderPlus, Folder } from 'lucide-react'
+import { useState } from 'react'
 import { DoodleBackground } from '../components/DoodleBackground'
-
-const subjects = [
-    { id: 'math', name: 'Matemáticas', icon: Calculator, color: 'bg-indigo-100 text-indigo-600', count: 12 },
-    { id: 'physics', name: 'Física', icon: Atom, color: 'bg-orange-100 text-orange-600', count: 8 },
-    { id: 'chemistry', name: 'Química', icon: FlaskConical, color: 'bg-emerald-100 text-emerald-600', count: 5 },
-    { id: 'history', name: 'Historia', icon: History, color: 'bg-yellow-100 text-yellow-600', count: 3 },
-    { id: 'literature', name: 'Literatura', icon: BookOpen, color: 'bg-pink-100 text-pink-600', count: 7 },
-    { id: 'english', name: 'Inglés', icon: Languages, color: 'bg-teal-100 text-teal-600', count: 4 },
-]
+import { useFileSystem } from '../contexts/FileSystemContext'
 
 export const Dashboard = () => {
+    const { items, createFolder } = useFileSystem()
+    const [isCreatingFolder, setIsCreatingFolder] = useState(false)
+    const [newFolderName, setNewFolderName] = useState('')
+
+    const folders = items.filter(item => item.type === 'folder' && item.parentId === null)
+
+    const handleCreateFolder = () => {
+        if (newFolderName.trim()) {
+            createFolder(newFolderName.trim())
+            setNewFolderName('')
+            setIsCreatingFolder(false)
+        }
+    }
+
     return (
-        <div className="min-h-screen bg-[var(--color-paper)] p-8 relative overflow-hidden font-sans">
+        <div className="min-h-screen bg-[var(--color-paper)] flex flex-col relative overflow-hidden">
             <DoodleBackground />
 
-            <div className="relative z-10 max-w-6xl mx-auto">
-                <header className="mb-12 text-center">
-                    <h1 className="text-5xl font-black text-gray-800 tracking-tight mb-3" style={{ fontFamily: '"Comic Sans MS", "Chalkboard SE", sans-serif' }}>
-                        Mis Materias
-                    </h1>
-                    <p className="text-gray-600 text-xl font-medium">Tu espacio creativo de aprendizaje</p>
-                </header>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {subjects.map((subject) => (
-                        <Link
-                            key={subject.id}
-                            to={`/subject/${subject.id}`}
-                            className="bg-white rounded-[2rem] p-8 shadow-lg border-2 border-gray-100 hover:border-indigo-300 hover:shadow-xl hover:-translate-y-1 transition-all group relative overflow-hidden"
-                            style={{ borderRadius: '255px 15px 225px 15px / 15px 225px 15px 255px' }} // Sketchy border
-                        >
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-transparent to-gray-50 rounded-bl-full -mr-8 -mt-8 opacity-50 group-hover:scale-110 transition-transform"></div>
-
-                            <div className="flex items-start justify-between mb-6 relative">
-                                <div className={`p-4 rounded-2xl ${subject.color} group-hover:rotate-12 transition-transform shadow-sm ring-4 ring-white`}>
-                                    <subject.icon className="w-8 h-8" />
-                                </div>
-                                <span className="text-xs font-bold text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200">
-                                    {subject.count} ejercicios
-                                </span>
-                            </div>
-                            <h2 className="text-2xl font-bold text-gray-800 mb-2 group-hover:text-indigo-600 transition-colors">{subject.name}</h2>
-                            <p className="text-sm text-gray-400 font-medium">Última actividad: hace 2 días</p>
-                        </Link>
-                    ))}
+            {/* Header */}
+            <header className="bg-white/80 backdrop-blur-md border-b border-gray-200 px-8 py-6 sticky top-0 z-20 shadow-sm">
+                <div className="max-w-6xl mx-auto">
+                    <h1 className="text-3xl font-bold text-gray-900">Mis Carpetas</h1>
+                    <p className="text-gray-500 mt-1">Organiza tus ejercicios en carpetas</p>
                 </div>
-            </div>
+            </header>
+
+            <main className="flex-1 p-8 max-w-6xl mx-auto w-full">
+                {/* Create Folder Button */}
+                <div className="mb-6">
+                    {!isCreatingFolder ? (
+                        <button
+                            onClick={() => setIsCreatingFolder(true)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-sm hover:shadow"
+                        >
+                            <FolderPlus className="w-4 h-4" />
+                            Nueva Carpeta
+                        </button>
+                    ) : (
+                        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 max-w-md">
+                            <input
+                                type="text"
+                                value={newFolderName}
+                                onChange={(e) => setNewFolderName(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+                                placeholder="Nombre de la carpeta..."
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md mb-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                autoFocus
+                            />
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleCreateFolder}
+                                    disabled={!newFolderName.trim()}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Crear
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIsCreatingFolder(false)
+                                        setNewFolderName('')
+                                    }}
+                                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Folders Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {folders.map((folder) => {
+                        const exerciseCount = items.filter(
+                            item => item.type === 'file' && item.parentId === folder.id
+                        ).length
+
+                        return (
+                            <Link
+                                key={folder.id}
+                                to={`/folder/${folder.id}`}
+                                className="bg-white p-6 rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all group"
+                            >
+                                <div className="flex items-start gap-4">
+                                    <div className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-100 transition-colors">
+                                        <Folder className="w-6 h-6" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="font-semibold text-gray-900 mb-1">{folder.name}</h3>
+                                        <p className="text-sm text-gray-500">
+                                            {exerciseCount} {exerciseCount === 1 ? 'ejercicio' : 'ejercicios'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </Link>
+                        )
+                    })}
+
+                    {folders.length === 0 && !isCreatingFolder && (
+                        <div className="col-span-full text-center py-12">
+                            <Folder className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                            <p className="text-gray-500 mb-4">No tienes carpetas aún</p>
+                            <button
+                                onClick={() => setIsCreatingFolder(true)}
+                                className="text-blue-600 hover:underline font-medium"
+                            >
+                                Crear tu primera carpeta
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </main>
         </div>
     )
 }

@@ -1,7 +1,8 @@
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Plus, FileText, Upload } from 'lucide-react'
+import { Plus, FileText, Upload } from 'lucide-react'
 import { useState } from 'react'
 import { DoodleBackground } from '../components/DoodleBackground'
+import { useFileSystem } from '../contexts/FileSystemContext'
 
 // Mock data for documents (would normally come from a backend/context)
 const mockDocs = [
@@ -12,9 +13,15 @@ const mockDocs = [
 
 export const SubjectView = () => {
     const { id } = useParams()
-    // MVP: Hardcode title for probability, otherwise capitalize
-    const subjectName = id === 'probability' ? 'Probabilidad y Estadística' : (id ? id.charAt(0).toUpperCase() + id.slice(1) : 'Materia')
+    const { items } = useFileSystem()
     const [docs, setDocs] = useState(mockDocs)
+
+    // Get folder info
+    const folder = items.find(item => item.id === id && item.type === 'folder')
+    const folderName = folder?.name || 'Carpeta'
+
+    // Get exercises in this folder
+    const exercises = items.filter(item => item.type === 'file' && item.parentId === id)
 
     return (
         <div className="min-h-screen bg-[var(--color-paper)] flex flex-col relative overflow-hidden">
@@ -28,7 +35,7 @@ export const SubjectView = () => {
                         <FileText className="w-5 h-5" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">{subjectName}</h1>
+                        <h1 className="text-2xl font-bold text-gray-900">{folderName}</h1>
                         <p className="text-sm text-gray-500">Gestión de documentos y ejercicios</p>
                     </div>
                 </div>
@@ -86,19 +93,37 @@ export const SubjectView = () => {
                     </div>
                 </section>
 
-                {/* Recent Exercises (Placeholder) */}
+                {/* Saved Exercises */}
                 <section className="mt-8">
-                    <h2 className="text-lg font-bold text-gray-800 mb-4">Ejercicios Recientes</h2>
+                    <h2 className="text-lg font-bold text-gray-800 mb-4">Ejercicios Guardados</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {[1, 2, 3].map((i) => (
-                            <div key={i} className="bg-white p-4 rounded-xl border border-gray-200 hover:border-blue-200 transition-colors cursor-pointer">
-                                <div className="h-32 bg-gray-50 rounded-lg mb-3 flex items-center justify-center text-gray-300">
-                                    Vista Previa
+                        {exercises.map((file) => (
+                            <Link
+                                key={file.id}
+                                to={`/canvas/${id}/${file.id}`}
+                                className="bg-white p-4 rounded-xl border border-gray-200 hover:border-blue-200 transition-colors cursor-pointer block group"
+                            >
+                                <div className="h-32 bg-gray-50 rounded-lg mb-3 flex items-center justify-center text-gray-300 overflow-hidden relative">
+                                    {/* Placeholder for preview - in real app we'd capture a thumbnail */}
+                                    <div className="absolute inset-0 flex items-center justify-center bg-gray-50 group-hover:bg-gray-100 transition-colors">
+                                        <FileText className="w-8 h-8 text-gray-300" />
+                                    </div>
                                 </div>
-                                <h3 className="font-medium text-gray-700">Ejercicio de Práctica #{i}</h3>
-                                <p className="text-xs text-gray-400 mt-1">Editado hace {i} horas</p>
-                            </div>
+                                <h3 className="font-medium text-gray-700 truncate">{file.name}</h3>
+                                <p className="text-xs text-gray-400 mt-1">
+                                    Editado {new Date(file.updatedAt).toLocaleDateString()}
+                                </p>
+                            </Link>
                         ))}
+
+                        {exercises.length === 0 && (
+                            <div className="col-span-full p-8 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                                <p className="text-gray-500">No hay ejercicios guardados en esta carpeta.</p>
+                                <Link to={`/canvas/${id}`} className="text-blue-600 font-medium hover:underline mt-2 inline-block">
+                                    Crear uno nuevo
+                                </Link>
+                            </div>
+                        )}
                     </div>
                 </section>
             </main>

@@ -1,45 +1,200 @@
-import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
-import Editor from '../components/Editor'
-import ExercisePanel from '../components/ExercisePanel'
-import { DebugConsole } from '../components/DebugConsole'
+import { useState, useRef, useEffect } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { ArrowLeft, Save } from 'lucide-react'
+import Editor, { type EditorRef } from '../components/Editor'
+import { ChatInterface } from '../components/ChatInterface'
+import { useFileSystem } from '../contexts/FileSystemContext'
+import { chatWithAI, type ChatMessage } from '../services/openai'
 
-export const CanvasView = () => {
-    const { subjectId } = useParams()
-    const [statement, setStatement] = useState(
-        "Resolver la siguiente integral definida: ∫(0 a π) x * sin(x) dx. Justificar cada paso."
-    )
+const CanvasView = () => {
+    const { folderId, fileId } = useParams()
+    const displayFolderName = folderId || 'Carpeta'
+    const [isChatOpen, setIsChatOpen] = useState(false)
+    const [exerciseStatement, setExerciseStatement] = useState('')
+    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false)
+    const [filename, setFilename] = useState('')
+
+    const editorRef = useRef<EditorRef>(null)
+    const { createFile, getFile, saveFile } = useFileSystem()
+    const [messages, setMessages] = useState<ChatMessage[]>([])
+
+    // Load existing file if fileId is present
+    useEffect(() => {
+        if (fileId) {
+            const file = getFile(fileId)
+            if (file && file.content) {
+                setFilename(file.name)
+                setExerciseStatement(file.content.statement || '')
+                // We need to wait for editor to be ready to load snapshot
+                // This is handled by passing initialSnapshot to Editor or using a ref
+                // For now, let's try to load it when editorRef is available
+                // A better approach is to pass initialSnapshot prop to Editor
+            }
+        }
+    }, [fileId, getFile])
+
+    // Effect to load snapshot into editor once it's ready
+    useEffect(() => {
+        if (fileId && editorRef.current) {
+            const file = getFile(fileId)
+            if (file && file.content && file.content.snapshot) {
+                // Small timeout to ensure editor is fully mounted
+                setTimeout(() => {
+                    editorRef.current?.loadSnapshot(file.content.snapshot)
+                }, 100)
+            }
+        }
+    }, [fileId, getFile, editorRef.current]) // Depend on editorRef.current
+
+    const handleSave = () => {
+        if (!filename.trim()) return
+
+        const snapshot = editorRef.current?.getSnapshot()
+        const content = {
+            statement: exerciseStatement,
+            snapshot,
+            parentId: folderId // Save parentId to organize in folders
+        }
+
+        if (fileId) {
+            // Update existing file
+            saveFile(fileId, content)
+            // Also rename if changed (not implemented in saveFile but we can use renameItem)
+            // For MVP just save content
+        } else {
+            // Create new file
+            createFile(filename, content)
+        }
+
+        setIsSaveModalOpen(false)
+        // Optional: Show success toast
+    }
+
+
+
+    const handleSendMessage = async (text: string) => {
+        try {
+            // Capture current canvas state
+            const image = await editorRef.current?.getCanvasImage()
+
+            // Build message history
+            const newMessage: ChatMessage = { role: 'user', text }
+            const allMessages = [...messages, newMessage]
+            setMessages(allMessages)
+
+            // Call AI with image and context
+            const response = await chatWithAI(allMessages, image ?? null, exerciseStatement)
+
+            // Add AI response to history
+            setMessages([...allMessages, { role: 'assistant', text: response }])
+
+            return response
+        } catch (error) {
+            console.error("Error in handleSendMessage:", error)
+            return "Lo siento, hubo un error al procesar tu mensaje."
+        }
+    }
 
     return (
-        <div className="h-screen flex flex-col bg-gray-50">
-            {/* Minimal Header */}
-            <header className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between shrink-0 z-20">
-                <div className="flex items-center gap-3">
-                    <Link to={`/subject/${subjectId}`} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors">
-                        <ArrowLeft className="w-5 h-5" />
-                    </Link>
-                    <div className="h-6 w-px bg-gray-200"></div>
-                    <h1 className="font-medium text-gray-700 text-sm">
-                        {subjectId?.charAt(0).toUpperCase() + subjectId?.slice(1)} / Nuevo Ejercicio
-                    </h1>
-                </div>
-                <div className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-1 rounded">
-                    Guardado automático
-                </div>
-            </header>
+        <div className="flex h-screen w-full bg-gray-50 overflow-hidden font-sans text-gray-900">
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col h-full relative">
+                {/* Header */}
+                <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 shrink-0 z-10">
+                    <div className="flex items-center gap-3">
+                        <Link to={`/folder/${folderId}`} className="text-gray-400 hover:text-gray-600 transition-colors">
+                            <ArrowLeft className="w-5 h-5" />
+                        </Link>
+                        <h1 className="font-semibold text-lg text-gray-800">
+                            {displayFolderName}
+                        </h1>
+                        <span className="text-gray-300">|</span>
+                        <span className="text-sm text-gray-500">Ejercicio 1</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setIsSaveModalOpen(true)}
+                            className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-md transition-colors flex items-center gap-2"
+                        >
+                            <Save className="w-4 h-4" />
+                            Guardar
+                        </button>
+                    </div>
+                </header>
 
-            {/* Exercise Statement Panel */}
-            <div className="shrink-0 z-10">
-                <ExercisePanel statement={statement} setStatement={setStatement} />
+                {/* Workspace */}
+                <div className="flex-1 flex flex-col overflow-hidden relative">
+                    {/* Exercise Statement Section */}
+                    <div className="bg-blue-50 border-b border-blue-100 px-4 py-3">
+                        <label className="block text-xs font-semibold text-blue-900 mb-2">
+                            Enunciado del Ejercicio
+                        </label>
+                        <textarea
+                            value={exerciseStatement}
+                            onChange={(e) => setExerciseStatement(e.target.value)}
+                            placeholder="Escribe aquí el enunciado del ejercicio para dar contexto a la IA..."
+                            className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none bg-white"
+                            rows={2}
+                        />
+                    </div>
+
+                    {/* Canvas - Full Width */}
+                    <div className="flex-1 relative bg-white">
+                        <Editor
+                            ref={editorRef}
+                            exerciseStatement={exerciseStatement}
+                            onOpenChat={() => setIsChatOpen(true)}
+                        />
+
+                        {/* Chat Interface (Floating) */}
+                        {isChatOpen && (
+                            <ChatInterface
+                                onClose={() => setIsChatOpen(false)}
+                                onSendMessage={handleSendMessage}
+                            />
+                        )}
+                    </div>
+                </div>
             </div>
 
-            {/* Main Canvas Area */}
-            <main className="flex-1 relative overflow-hidden">
-                <Editor exerciseStatement={statement} />
-            </main>
-
-            <DebugConsole />
+            {/* Save Modal */}
+            {isSaveModalOpen && (
+                <div className="fixed inset-0 bg-black/50 z-[300] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Guardar Ejercicio</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del archivo</label>
+                                <input
+                                    type="text"
+                                    value={filename}
+                                    onChange={(e) => setFilename(e.target.value)}
+                                    placeholder="Ej: Derivadas Parciales 1"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button
+                                    onClick={() => setIsSaveModalOpen(false)}
+                                    className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleSave}
+                                    disabled={!filename.trim()}
+                                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Guardar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
+
+export default CanvasView
