@@ -1,4 +1,4 @@
-import { X, Lightbulb, AlertTriangle } from 'lucide-react'
+import { X, Lightbulb, AlertTriangle, MessageCircle } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { clsx } from 'clsx'
 
@@ -9,9 +9,10 @@ interface AnnotationBubbleProps {
     explanation: string
     type: 'warning' | 'info'
     onClose: () => void
+    onAskAI: () => void
 }
 
-export const AnnotationBubble = ({ x, y, text, explanation, type, onClose }: AnnotationBubbleProps) => {
+export const AnnotationBubble = ({ x, y, text, explanation, type, onClose, onAskAI }: AnnotationBubbleProps) => {
     const ref = useRef<HTMLDivElement>(null)
 
     // Close on click outside
@@ -59,9 +60,20 @@ export const AnnotationBubble = ({ x, y, text, explanation, type, onClose }: Ann
                 </button>
             </div>
 
-            <p className="text-sm text-gray-600 leading-relaxed">
+            <p className="text-sm text-gray-600 leading-relaxed mb-4">
                 {explanation}
             </p>
+
+            <button
+                onClick={() => {
+                    onAskAI()
+                    onClose()
+                }}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+            >
+                <MessageCircle className="w-4 h-4" />
+                Preguntar a la IA
+            </button>
 
             <div className={clsx("absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rotate-45 bg-white border-l border-t", borderColor)}></div>
         </div>

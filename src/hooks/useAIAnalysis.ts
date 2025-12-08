@@ -10,59 +10,66 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
     const lastActivityRef = useRef<number>(Date.now())
 
     // Helper to inject annotation (Marker Style)
-    const injectAnnotation = useCallback((text: string, explanation: string, type: 'warning' | 'info', xPct: number, yPct: number, commonBounds: any) => {
+    const injectAnnotation = useCallback((text: string, explanation: string, type: 'warning' | 'info', xPct: number, yPct: number, wPct: number, hPct: number, commonBounds: any) => {
         if (!editor) return
 
         // 1. Calculate Absolute Position based on Common Bounds
-        const x = commonBounds.minX + (xPct * commonBounds.width)
-        const y = commonBounds.minY + (yPct * commonBounds.height)
+        // xPct, yPct are now top-left of the box
+        const boxX = commonBounds.minX + (xPct * commonBounds.width)
+        const boxY = commonBounds.minY + (yPct * commonBounds.height)
+        const boxW = wPct * commonBounds.width
+        const boxH = hPct * commonBounds.height
+
+        // Calculate center for deduplication and arrow target
+        const centerX = boxX + boxW / 2
+        const centerY = boxY + boxH / 2
 
         // 2. Deduplication (Zone Memory)
         const existingShapes = editor.getCurrentPageShapes()
         const isDuplicate = existingShapes.some(shape => {
             if (!shape.meta || !shape.meta.explanation) return false
-            const dist = Math.hypot(shape.x - x, shape.y - y)
-            return dist < 150
+            const dist = Math.hypot(shape.x - centerX, shape.y - centerY) // Approx check
+            return dist < 100 // Reduced radius since we might have close errors
         })
 
         if (isDuplicate) {
-            logDebug("Skipping annotation (Zone Memory active)", { x, y })
+            logDebug("Skipping annotation (Zone Memory active)", { centerX, centerY })
             return
         }
 
-        const underlineId = createShapeId()
+        const circleId = createShapeId()
         const arrowId = createShapeId()
         const textId = createShapeId()
         const color = type === 'warning' ? 'red' : 'blue'
 
-        // 3. Create Underline (Draw shape simulating a line/scribble under the error)
-        // We simulate a small wave or line under the point
+        // 3. Create Circle (Ellipse) around the error
+        // Add padding (e.g., 20% of the max dimension) to make it "generous"
+        const padding = Math.max(boxW, boxH) * 0.2
+        const finalW = boxW + padding * 2
+        const finalH = boxH + padding * 2
+        const finalX = boxX - padding
+        const finalY = boxY - padding
+
         editor.createShape({
-            id: underlineId,
-            type: 'draw',
-            x: x - 20,
-            y: y + 10,
+            id: circleId,
+            type: 'geo',
+            x: finalX,
+            y: finalY,
             props: {
-                segments: [{
-                    type: 'free',
-                    points: [
-                        { x: 0, y: 0, z: 0.5 },
-                        { x: 10, y: 2, z: 0.5 },
-                        { x: 20, y: -1, z: 0.5 },
-                        { x: 30, y: 1, z: 0.5 },
-                        { x: 40, y: 0, z: 0.5 }
-                    ]
-                }],
+                geo: 'ellipse',
+                w: finalW,
+                h: finalH,
                 color,
-                size: 's',
-                isComplete: true
+                fill: 'none',
+                dash: 'draw', // Hand-drawn style
+                size: 'm',
             }
         })
 
         // 4. Create Label (Title)
-        // Position it to the right and slightly up
-        const labelX = x + 60
-        const labelY = y - 20
+        // Position it to the right of the box
+        const labelX = finalX + finalW + 20
+        const labelY = finalY
 
         editor.createShape({
             id: textId,
@@ -72,7 +79,7 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
             props: {
                 richText: toRichText(text), // The keyword/title
                 color,
-                size: 's',
+                size: 'm',
                 font: 'sans',
             },
             meta: {
@@ -80,15 +87,15 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
             }
         })
 
-        // 5. Create Arrow connecting Underline to Label
+        // 5. Create Arrow connecting Circle to Label
         editor.createShape({
             id: arrowId,
             type: 'arrow',
-            x: x, // Start at the error point
-            y: y + 10,
+            x: finalX + finalW, // Start at the right edge of the ellipse
+            y: centerY, // Vertically centered
             props: {
                 start: { x: 0, y: 0 },
-                end: { x: labelX - x, y: labelY - y + 10 }, // Point to the label
+                end: { x: labelX - (finalX + finalW), y: labelY - centerY + 15 }, // Point to the label
                 color,
                 size: 's',
                 arrowheadStart: 'none',
@@ -188,8 +195,15 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
                     const annotations = await analyzeCanvas(base64data, mode, exerciseStatement)
                     logDebug("OpenAI Response received", annotations)
 
+                    if (annotations.length === 0) {
+                        window.alert("No se encontraron errores o hubo un problema con la IA.")
+                    }
+
                     annotations.forEach(ann => {
-                        injectAnnotation(ann.text, ann.explanation, ann.type, ann.x, ann.y, commonBounds)
+                        // Pass width and height (default to small box if missing for some reason)
+                        const w = ann.width || 0.1
+                        const h = ann.height || 0.1
+                        injectAnnotation(ann.text, ann.explanation, ann.type, ann.x, ann.y, w, h, commonBounds)
                     })
 
                     if (isIdle && annotations.length > 0) {
@@ -197,6 +211,7 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
                     }
                 } catch (apiError) {
                     logDebug("OpenAI API Error", apiError)
+                    window.alert("Error al conectar con la IA. Por favor verifica tu conexión o la configuración.")
                 }
                 setIsAnalyzing(false)
             }

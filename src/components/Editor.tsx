@@ -111,7 +111,9 @@ const EditorContent = forwardRef(({ exerciseStatement, onOpenChat }: { exerciseS
 
         try {
             console.log("Calling generateSolution with:", exerciseStatement)
-            const steps = await generateSolution(exerciseStatement)
+
+            // Generate solution based on exercise statement only, not canvas
+            const steps = await generateSolution(exerciseStatement, null)
             console.log("Received steps:", steps)
 
             if (steps.length > 0) {
@@ -142,19 +144,24 @@ const EditorContent = forwardRef(({ exerciseStatement, onOpenChat }: { exerciseS
                         color: 'blue',
                         size: 'm',
                         font: 'draw',
-                        // autoSize: true // Try removing autoSize if it causes issues, or keep it if supported
+                        w: 600, // Set a fixed width to force wrapping if needed, though header usually short
+                        autoSize: false // Disable autoSize to respect width if we set it, or keep true for header
                     }
                 })
 
-                startY += 50
+                // Wait a tick for the shape to be created and measured
+                await new Promise(resolve => setTimeout(resolve, 50))
+                const headerBounds = editor.getShapePageBounds(headerId)
+                startY += (headerBounds?.h || 40) + 20
 
                 // We can't use forEach with async/await nicely for sequential layout
                 // Use for...of loop
                 for (const [index, step] of steps.entries()) {
                     console.log("Creating step shape", index)
                     // Explanation
+                    const stepId = createShapeId()
                     editor.createShape({
-                        id: createShapeId(),
+                        id: stepId,
                         type: 'text',
                         x: startX,
                         y: startY,
@@ -163,10 +170,15 @@ const EditorContent = forwardRef(({ exerciseStatement, onOpenChat }: { exerciseS
                             color: 'black',
                             size: 's',
                             font: 'sans',
-                            // autoSize: true
+                            w: 800, // Set a max width for the text to wrap
+                            autoSize: false // Important: disable autoSize so it wraps at 'w'
                         }
                     })
-                    startY += 40
+
+                    // Wait for measurement
+                    await new Promise(resolve => setTimeout(resolve, 50))
+                    const stepBounds = editor.getShapePageBounds(stepId)
+                    startY += (stepBounds?.h || 30) + 10
 
                     // Math/Latex
                     if (step.latex) {
@@ -241,6 +253,7 @@ const EditorContent = forwardRef(({ exerciseStatement, onOpenChat }: { exerciseS
                 <AnnotationBubble
                     {...selectedAnnotation}
                     onClose={() => setSelectedAnnotation(null)}
+                    onAskAI={() => onOpenChat(`Explícame más sobre este error: ${selectedAnnotation.text}`)}
                 />
             )}
 
@@ -251,7 +264,7 @@ const EditorContent = forwardRef(({ exerciseStatement, onOpenChat }: { exerciseS
             <AIToolsPanel
                 onCalculatorClick={() => setIsCalculatorOpen(true)}
                 onAnalyzeClick={() => triggerAnalysis()}
-                onChatClick={onOpenChat}
+                onChatClick={() => onOpenChat()}
                 onSolutionClick={handleShowSolution}
                 isGeneratingSolution={isGeneratingSolution}
             />

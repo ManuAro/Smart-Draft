@@ -8,12 +8,46 @@ const openai = new OpenAI({
     dangerouslyAllowBrowser: true // Required for client-side usage
 })
 
+const PRIMARY_MODEL = "gpt-5.1"
+const FALLBACK_MODEL = "gpt-4o"
+
+async function callOpenAIWithFallback(params: any) {
+    try {
+        logDebug(`Attempting call with ${PRIMARY_MODEL}`)
+        // Log payload summary (hide base64)
+        const payloadSummary = JSON.parse(JSON.stringify(params))
+        if (payloadSummary.messages) {
+            payloadSummary.messages.forEach((m: any) => {
+                if (Array.isArray(m.content)) {
+                    m.content = m.content.map((c: any) => c.type === 'image_url' ? { ...c, image_url: { ...c.image_url, url: '<BASE64_HIDDEN>' } } : c)
+                }
+            })
+        }
+        logDebug("Request Payload:", payloadSummary)
+
+        const response = await openai.chat.completions.create({ ...params, model: PRIMARY_MODEL })
+
+        if (!response.choices[0]?.message?.content) {
+            throw new Error("Empty response from primary model")
+        }
+
+        return response
+
+    } catch (error) {
+        console.warn(`${PRIMARY_MODEL} failed, falling back to ${FALLBACK_MODEL}`, error)
+        logDebug(`${PRIMARY_MODEL} failed, falling back to ${FALLBACK_MODEL}`, error)
+        return await openai.chat.completions.create({ ...params, model: FALLBACK_MODEL })
+    }
+}
+
 export interface AIAnnotation {
     type: 'warning' | 'info'
     text: string
     explanation: string // Detailed explanation
-    x: number // 0-1 relative to image width
-    y: number // 0-1 relative to image height
+    x: number // 0-1 relative to image width (top-left of box)
+    y: number // 0-1 relative to image height (top-left of box)
+    width: number // 0-1 relative width
+    height: number // 0-1 relative height
 }
 
 export const analyzeCanvas = async (
@@ -27,31 +61,21 @@ export const analyzeCanvas = async (
     }
 
     const prompt = mode === 'active'
-        ? "You are a strict math tutor checking for errors in real-time. Look for logical errors, calculation mistakes, or missing justifications. CRITICAL RULES:\n1. IGNORE INCOMPLETE WORK. If an equation ends in '=', or if an integral/parenthesis is unclosed, DO NOT flag it. The user is still writing.\n2. Only flag CLEAR, OBJECTIVE ERRORS in COMPLETED steps.\n3. False positives are unacceptable.\nReturn a JSON array of annotations. For each error, provide a VERY SHORT keyword (max 2 words), a detailed explanation, and the position."
-        : "You are a helpful math tutor. The student is stuck. Provide a helpful hint or suggestion to move forward. Return a JSON array of annotations. Provide a VERY SHORT keyword (max 2 words), a detailed explanation, and the position."
+        ? "You are a math tutor checking for errors. Look for logical errors, calculation mistakes, or missing justifications. Return a JSON array of annotations. For each error, provide a VERY SHORT keyword (max 2 words), a detailed explanation, and the BOUNDING BOX of the error."
+        : "You are a helpful math tutor. The student is stuck. Provide a helpful hint or suggestion to move forward. Return a JSON array of annotations. Provide a VERY SHORT keyword (max 2 words), a detailed explanation, and the BOUNDING BOX of the area to focus on."
 
     try {
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o",
+        const response = await callOpenAIWithFallback({
             messages: [
                 {
                     role: "system",
                     content: `You are an AI assistant analyzing handwritten math. 
           The current exercise statement is: "${exerciseStatement}".
           
-          Output strictly valid JSON in this format:
-          {
-            "annotations": [
-              { 
-                "type": "warning" (for errors) or "info" (for hints), 
-                "text": "keyword", 
-                "explanation": "Detailed explanation of why this is wrong or a helpful hint.",
-                "x": 0.5, 
-                "y": 0.5 
-              }
-            ]
-          }
-          IMPORTANT: x and y MUST be relative coordinates (0-1) pointing EXACTLY to the specific error or part of the equation.
+          Analyze the image and provide annotations.
+          IMPORTANT: You must return a BOUNDING BOX for each error.
+          - x, y: Top-left corner of the box (0-1 relative coordinates).
+          - width, height: Size of the box (0-1 relative).
           (0,0) is top-left, (1,1) is bottom-right of the provided image.
           IMPORTANT: ALL OUTPUT MUST BE IN SPANISH.
           `
@@ -70,19 +94,49 @@ export const analyzeCanvas = async (
                     ]
                 }
             ],
-            response_format: { type: "json_object" },
-            max_tokens: 300,
+            response_format: {
+                type: "json_schema",
+                json_schema: {
+                    name: "math_analysis",
+                    strict: true,
+                    schema: {
+                        type: "object",
+                        properties: {
+                            annotations: {
+                                type: "array",
+                                items: {
+                                    type: "object",
+                                    properties: {
+                                        type: { type: "string", enum: ["warning", "info"] },
+                                        text: { type: "string" },
+                                        explanation: { type: "string" },
+                                        x: { type: "number" },
+                                        y: { type: "number" },
+                                        width: { type: "number" },
+                                        height: { type: "number" }
+                                    },
+                                    required: ["type", "text", "explanation", "x", "y", "width", "height"],
+                                    additionalProperties: false
+                                }
+                            }
+                        },
+                        required: ["annotations"],
+                        additionalProperties: false
+                    }
+                }
+            }
         })
 
         const content = response.choices[0].message.content
-        logDebug("Raw OpenAI Content", content)
+        logDebug("OpenAI API Content", content)
+
         if (!content) return []
 
         const result = JSON.parse(content)
         return result.annotations || []
 
     } catch (error) {
-        console.error("Error calling OpenAI:", error)
+        console.error("Error calling OpenAI API:", error)
         return []
     }
 }
@@ -92,45 +146,77 @@ export interface SolutionStep {
     latex: string
 }
 
-export const generateSolution = async (exerciseStatement: string): Promise<SolutionStep[]> => {
+export const generateSolution = async (
+    exerciseStatement: string,
+    imageDataUrl: string | null
+): Promise<SolutionStep[]> => {
     if (!apiKey) {
         console.error("No API Key found")
         return []
     }
 
     try {
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o",
+        const userContent: any[] = [{ type: "text", text: "Solve this problem step-by-step." }]
+
+        if (imageDataUrl) {
+            userContent.push({
+                type: "image_url",
+                image_url: {
+                    url: imageDataUrl,
+                    detail: "high"
+                }
+            })
+        }
+
+        const response = await callOpenAIWithFallback({
             messages: [
                 {
                     role: "system",
                     content: `You are an expert math tutor.
           The current exercise statement is: "${exerciseStatement}".
           
+          You have access to the student's current work (if provided). Use it to understand their approach, but provide a complete correct solution.
+          
           Solve the problem step-by-step.
-          Output strictly valid JSON in this format:
-          {
-            "steps": [
-              { 
-                "explanation": "Brief explanation of the step in Spanish", 
-                "latex": "The math equation for this step (e.g. \\int x dx)"
-              }
-            ]
-          }
           IMPORTANT: ALL OUTPUT MUST BE IN SPANISH.
           `
                 },
                 {
                     role: "user",
-                    content: "Solve this problem step-by-step. Return the JSON."
+                    content: userContent
                 }
             ],
-            response_format: { type: "json_object" },
-            max_tokens: 1000,
+            response_format: {
+                type: "json_schema",
+                json_schema: {
+                    name: "math_solution",
+                    strict: true,
+                    schema: {
+                        type: "object",
+                        properties: {
+                            steps: {
+                                type: "array",
+                                items: {
+                                    type: "object",
+                                    properties: {
+                                        explanation: { type: "string" },
+                                        latex: { type: "string" }
+                                    },
+                                    required: ["explanation", "latex"],
+                                    additionalProperties: false
+                                }
+                            }
+                        },
+                        required: ["steps"],
+                        additionalProperties: false
+                    }
+                }
+            }
         })
 
         const content = response.choices[0].message.content
-        logDebug("Raw OpenAI Solution", content)
+        logDebug("OpenAI API Solution", content)
+
         if (!content) return []
 
         const result = JSON.parse(content)
@@ -198,10 +284,8 @@ export const chatWithAI = async (
             content: userContent
         })
 
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o",
+        const response = await callOpenAIWithFallback({
             messages: apiMessages,
-            max_tokens: 500,
         })
 
         return response.choices[0].message.content || "Lo siento, no pude generar una respuesta."

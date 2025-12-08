@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom'
-import { Plus, FileText, Upload } from 'lucide-react'
+import { Plus, FileText, Upload, Edit2, Check, X } from 'lucide-react'
 import { useState } from 'react'
 import { DoodleBackground } from '../components/DoodleBackground'
 import { useFileSystem } from '../contexts/FileSystemContext'
@@ -13,8 +13,10 @@ const mockDocs = [
 
 export const SubjectView = () => {
     const { id } = useParams()
-    const { items } = useFileSystem()
+    const { items, renameItem } = useFileSystem()
     const [docs, setDocs] = useState(mockDocs)
+    const [editingId, setEditingId] = useState<string | null>(null)
+    const [editName, setEditName] = useState('')
 
     // Get folder info
     const folder = items.find(item => item.id === id && item.type === 'folder')
@@ -22,6 +24,34 @@ export const SubjectView = () => {
 
     // Get exercises in this folder
     const exercises = items.filter(item => item.type === 'file' && item.parentId === id)
+
+    const startEditing = (e: React.MouseEvent, file: { id: string, name: string }) => {
+        e.preventDefault() // Prevent navigation
+        e.stopPropagation()
+        setEditingId(file.id)
+        setEditName(file.name)
+    }
+
+    const saveRename = (e?: React.MouseEvent) => {
+        if (e) {
+            e.preventDefault()
+            e.stopPropagation()
+        }
+        if (editingId && editName.trim()) {
+            renameItem(editingId, editName.trim())
+            setEditingId(null)
+            setEditName('')
+        }
+    }
+
+    const cancelRename = (e?: React.MouseEvent) => {
+        if (e) {
+            e.preventDefault()
+            e.stopPropagation()
+        }
+        setEditingId(null)
+        setEditName('')
+    }
 
     return (
         <div className="min-h-screen bg-[var(--color-paper)] flex flex-col relative overflow-hidden">
@@ -98,22 +128,68 @@ export const SubjectView = () => {
                     <h2 className="text-lg font-bold text-gray-800 mb-4">Ejercicios Guardados</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {exercises.map((file) => (
-                            <Link
-                                key={file.id}
-                                to={`/canvas/${id}/${file.id}`}
-                                className="bg-white p-4 rounded-xl border border-gray-200 hover:border-blue-200 transition-colors cursor-pointer block group"
-                            >
-                                <div className="h-32 bg-gray-50 rounded-lg mb-3 flex items-center justify-center text-gray-300 overflow-hidden relative">
-                                    {/* Placeholder for preview - in real app we'd capture a thumbnail */}
-                                    <div className="absolute inset-0 flex items-center justify-center bg-gray-50 group-hover:bg-gray-100 transition-colors">
-                                        <FileText className="w-8 h-8 text-gray-300" />
+                            <div key={file.id} className="relative group">
+                                <Link
+                                    to={`/canvas/${id}/${file.id}`}
+                                    className="bg-white p-4 rounded-xl border border-gray-200 hover:border-blue-200 transition-colors cursor-pointer block"
+                                    onClick={(e) => {
+                                        if (editingId === file.id) e.preventDefault()
+                                    }}
+                                >
+                                    <div className="h-32 bg-gray-50 rounded-lg mb-3 flex items-center justify-center text-gray-300 overflow-hidden relative">
+                                        {/* Placeholder for preview - in real app we'd capture a thumbnail */}
+                                        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 group-hover:bg-gray-100 transition-colors">
+                                            <FileText className="w-8 h-8 text-gray-300" />
+                                        </div>
                                     </div>
-                                </div>
-                                <h3 className="font-medium text-gray-700 truncate">{file.name}</h3>
-                                <p className="text-xs text-gray-400 mt-1">
-                                    Editado {new Date(file.updatedAt).toLocaleDateString()}
-                                </p>
-                            </Link>
+
+                                    {editingId === file.id ? (
+                                        <div className="flex items-center gap-2" onClick={(e) => e.preventDefault()}>
+                                            <input
+                                                type="text"
+                                                value={editName}
+                                                onChange={(e) => setEditName(e.target.value)}
+                                                className="flex-1 px-2 py-1 text-sm border border-blue-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                                autoFocus
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') saveRename()
+                                                    if (e.key === 'Escape') cancelRename()
+                                                    e.stopPropagation()
+                                                }}
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                            <button
+                                                onClick={saveRename}
+                                                className="p-1 text-green-600 hover:bg-green-50 rounded"
+                                            >
+                                                <Check className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={cancelRename}
+                                                className="p-1 text-red-600 hover:bg-red-50 rounded"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div>
+                                                <h3 className="font-medium text-gray-700 truncate">{file.name}</h3>
+                                                <p className="text-xs text-gray-400 mt-1">
+                                                    Editado {new Date(file.updatedAt).toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={(e) => startEditing(e, file)}
+                                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                                                title="Renombrar"
+                                            >
+                                                <Edit2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    )}
+                                </Link>
+                            </div>
                         ))}
 
                         {exercises.length === 0 && (

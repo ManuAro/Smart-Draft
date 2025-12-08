@@ -5,6 +5,7 @@ import Editor, { type EditorRef } from '../components/Editor'
 import { ChatInterface } from '../components/ChatInterface'
 import { useFileSystem } from '../contexts/FileSystemContext'
 import { chatWithAI, type ChatMessage } from '../services/openai'
+import { DebugConsole } from '../components/DebugConsole'
 
 const CanvasView = () => {
     const { folderId, fileId } = useParams()
@@ -193,6 +194,8 @@ const CanvasView = () => {
                     </div>
                 </div>
             )}
+
+            <DebugConsole />
         </div>
     )
 }
