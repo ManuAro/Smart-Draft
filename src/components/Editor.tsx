@@ -6,10 +6,13 @@ import { Brain } from 'lucide-react'
 import { AnnotationBubble } from './AnnotationBubble'
 import { Calculator } from './Calculator'
 import { AIToolsPanel } from './AIToolsPanel'
-import { DebugConsole } from './DebugConsole'
-
-
 import { generateSolution } from '../services/openai'
+
+const TLDRAW_LICENSE_KEY = import.meta.env.VITE_TLDRAW_LICENSE_KEY ?? ''
+
+if (!TLDRAW_LICENSE_KEY && import.meta.env.PROD) {
+    console.warn('No Tldraw license key found. Set VITE_TLDRAW_LICENSE_KEY to prevent the canvas from disabling in production.')
+}
 
 // Inner component to access the editor context
 const EditorContent = forwardRef(({ exerciseStatement, onOpenChat }: { exerciseStatement: string, onOpenChat: (message?: string) => void }, ref) => {
@@ -269,11 +272,10 @@ export interface EditorRef {
     getEditor: () => any
 }
 
-const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: () => void, initialSnapshot?: any, fileId?: string }>(({ exerciseStatement, onOpenChat, initialSnapshot, fileId }, ref) => {
+const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: () => void, initialSnapshot?: any, fileId?: string }>(({ exerciseStatement, onOpenChat, initialSnapshot, fileId: _fileId }, ref) => {
     const [editor, setEditor] = useState<any>(null)
     const [hasLoadedInitialSnapshot, setHasLoadedInitialSnapshot] = useState(false)
     const [hasInitialized, setHasInitialized] = useState(false)
-    const [shapeCount, setShapeCount] = useState(0)
 
     const contentRef = useRef<{ triggerAnalysis: () => void, getCanvasImage: () => Promise<string | null> }>(null)
 
@@ -301,25 +303,6 @@ const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: ()
         }
     }, [editor, hasInitialized])
 
-    // Monitor tldraw store for changes (debug)
-    useEffect(() => {
-        if (!editor) return
-
-        // Update shape count immediately
-        const updateShapeCount = () => {
-            const count = editor.getCurrentPageShapeIds().size
-            setShapeCount(count)
-        }
-
-        updateShapeCount()
-
-        // Listen to store changes
-        const cleanup = editor.store.listen(() => {
-            updateShapeCount()
-        })
-
-        return cleanup
-    }, [editor])
 
     useImperativeHandle(ref, () => ({
         getSnapshot: () => {
@@ -350,6 +333,7 @@ const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: ()
             <Tldraw
                 hideUi={false}
                 autoFocus
+                licenseKey={TLDRAW_LICENSE_KEY}
                 // REMOVED persistenceKey - we handle persistence manually with our file system
                 // persistenceKey was causing canvas to load previous state from localStorage
                 onMount={(editor) => setEditor(editor)}
@@ -357,17 +341,6 @@ const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: ()
                 <EditorContent ref={contentRef} exerciseStatement={exerciseStatement} onOpenChat={onOpenChat} />
             </Tldraw>
 
-            {/* Debug Console */}
-            <DebugConsole
-                editorState={{
-                    hasEditor: !!editor,
-                    hasInitialized: hasInitialized,
-                    hasLoadedSnapshot: hasLoadedInitialSnapshot,
-                    initialSnapshotExists: !!initialSnapshot,
-                    fileId: fileId,
-                    shapeCount: shapeCount
-                }}
-            />
         </div>
     )
 })
