@@ -7,6 +7,7 @@ interface DebugConsoleProps {
         hasLoadedSnapshot: boolean
         initialSnapshotExists: boolean
         fileId: string | undefined
+        shapeCount: number
     }
 }
 
@@ -36,6 +37,9 @@ export const DebugConsole = ({ editorState }: DebugConsoleProps) => {
         }
         if (prevState.current.fileId !== editorState.fileId) {
             changes.push(`fileId: ${prevState.current.fileId} → ${editorState.fileId}`)
+        }
+        if (prevState.current.shapeCount !== editorState.shapeCount) {
+            changes.push(`shapeCount: ${prevState.current.shapeCount} → ${editorState.shapeCount}`)
         }
 
         if (changes.length > 0) {
@@ -81,6 +85,7 @@ export const DebugConsole = ({ editorState }: DebugConsoleProps) => {
                 <div>Snapshot Loaded: <span className={editorState.hasLoadedSnapshot ? 'text-green-400' : 'text-red-400'}>{editorState.hasLoadedSnapshot ? '✓' : '✗'}</span></div>
                 <div>Initial Snapshot Exists: <span className={editorState.initialSnapshotExists ? 'text-green-400' : 'text-red-400'}>{editorState.initialSnapshotExists ? '✓' : '✗'}</span></div>
                 <div>File ID: <span className="text-yellow-400">{editorState.fileId || 'new-exercise'}</span></div>
+                <div>Shape Count: <span className={editorState.shapeCount > 0 ? 'text-green-400' : 'text-gray-400'}>{editorState.shapeCount}</span></div>
             </div>
 
             <div className="border-t border-gray-700 pt-2">

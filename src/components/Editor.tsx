@@ -273,6 +273,7 @@ const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: ()
     const [editor, setEditor] = useState<any>(null)
     const [hasLoadedInitialSnapshot, setHasLoadedInitialSnapshot] = useState(false)
     const [hasInitialized, setHasInitialized] = useState(false)
+    const [shapeCount, setShapeCount] = useState(0)
 
     const contentRef = useRef<{ triggerAnalysis: () => void, getCanvasImage: () => Promise<string | null> }>(null)
 
@@ -299,6 +300,26 @@ const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: ()
             }, 100)
         }
     }, [editor, hasInitialized])
+
+    // Monitor tldraw store for changes (debug)
+    useEffect(() => {
+        if (!editor) return
+
+        // Update shape count immediately
+        const updateShapeCount = () => {
+            const count = editor.getCurrentPageShapeIds().size
+            setShapeCount(count)
+        }
+
+        updateShapeCount()
+
+        // Listen to store changes
+        const cleanup = editor.store.listen(() => {
+            updateShapeCount()
+        })
+
+        return cleanup
+    }, [editor])
 
     useImperativeHandle(ref, () => ({
         getSnapshot: () => {
@@ -343,7 +364,8 @@ const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: ()
                     hasInitialized: hasInitialized,
                     hasLoadedSnapshot: hasLoadedInitialSnapshot,
                     initialSnapshotExists: !!initialSnapshot,
-                    fileId: fileId
+                    fileId: fileId,
+                    shapeCount: shapeCount
                 }}
             />
         </div>
