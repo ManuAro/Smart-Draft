@@ -272,23 +272,23 @@ export interface EditorRef {
 const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: () => void, initialSnapshot?: any, fileId?: string }>(({ exerciseStatement, onOpenChat, initialSnapshot, fileId }, ref) => {
     const [editor, setEditor] = useState<any>(null)
     const [hasLoadedInitialSnapshot, setHasLoadedInitialSnapshot] = useState(false)
-    const hasInitialized = useRef(false)
+    const [hasInitialized, setHasInitialized] = useState(false)
 
     const contentRef = useRef<{ triggerAnalysis: () => void, getCanvasImage: () => Promise<string | null> }>(null)
 
     // Load initial snapshot ONLY ONCE when editor is ready
     useEffect(() => {
-        if (editor && initialSnapshot && !hasLoadedInitialSnapshot && !hasInitialized.current) {
+        if (editor && initialSnapshot && !hasLoadedInitialSnapshot && !hasInitialized) {
             loadSnapshot(editor.store, initialSnapshot)
             setHasLoadedInitialSnapshot(true)
-            hasInitialized.current = true
+            setHasInitialized(true)
         }
-    }, [editor, initialSnapshot, hasLoadedInitialSnapshot])
+    }, [editor, initialSnapshot, hasLoadedInitialSnapshot, hasInitialized])
 
     // Force focus on editor when it mounts to prevent toolbar from hiding
     useEffect(() => {
-        if (editor && !hasInitialized.current) {
-            hasInitialized.current = true
+        if (editor && !hasInitialized) {
+            setHasInitialized(true)
 
             // Focus immediately
             editor.focus()
@@ -298,7 +298,7 @@ const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: ()
                 editor.focus()
             }, 100)
         }
-    }, [editor])
+    }, [editor, hasInitialized])
 
     useImperativeHandle(ref, () => ({
         getSnapshot: () => {
@@ -340,7 +340,7 @@ const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: ()
             <DebugConsole
                 editorState={{
                     hasEditor: !!editor,
-                    hasInitialized: hasInitialized.current,
+                    hasInitialized: hasInitialized,
                     hasLoadedSnapshot: hasLoadedInitialSnapshot,
                     initialSnapshotExists: !!initialSnapshot,
                     fileId: fileId
