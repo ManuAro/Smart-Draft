@@ -29,7 +29,9 @@ const CanvasView = () => {
         }
     }, [folderId, setCurrentFolderId])
 
-    // Load existing file if fileId is present
+    // Load existing file if fileId is present - ONLY ONCE on mount
+    const [initialSnapshot, setInitialSnapshot] = useState<any>(null)
+
     useEffect(() => {
         if (fileId) {
             const file = getFile(fileId)
@@ -37,26 +39,13 @@ const CanvasView = () => {
                 setFilename(file.name)
                 setExerciseStatement(file.content.statement || '')
                 setCurrentFileId(fileId)
-                // We need to wait for editor to be ready to load snapshot
-                // This is handled by passing initialSnapshot to Editor or using a ref
-                // For now, let's try to load it when editorRef is available
-                // A better approach is to pass initialSnapshot prop to Editor
+                // Set initial snapshot only once
+                if (file.content.snapshot) {
+                    setInitialSnapshot(file.content.snapshot)
+                }
             }
         }
     }, [fileId, getFile])
-
-    // Effect to load snapshot into editor once it's ready
-    useEffect(() => {
-        if (fileId && editorRef.current) {
-            const file = getFile(fileId)
-            if (file && file.content && file.content.snapshot) {
-                // Small timeout to ensure editor is fully mounted
-                setTimeout(() => {
-                    editorRef.current?.loadSnapshot(file.content.snapshot)
-                }, 100)
-            }
-        }
-    }, [fileId, getFile, editorRef.current]) // Depend on editorRef.current
 
     const handleSave = () => {
         if (!filename.trim()) return
@@ -149,6 +138,16 @@ const CanvasView = () => {
                         <textarea
                             value={exerciseStatement}
                             onChange={(e) => setExerciseStatement(e.target.value)}
+                            onBlur={() => {
+                                // Re-focus the tldraw editor when user finishes with textarea
+                                // This prevents the toolbar from disappearing
+                                setTimeout(() => {
+                                    const editor = editorRef.current?.getEditor()
+                                    if (editor) {
+                                        editor.focus()
+                                    }
+                                }, 100)
+                            }}
                             placeholder="Escribe aquí el enunciado del ejercicio para dar contexto a la IA..."
                             className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none bg-white"
                             rows={2}
@@ -161,6 +160,7 @@ const CanvasView = () => {
                             ref={editorRef}
                             exerciseStatement={exerciseStatement}
                             onOpenChat={() => setIsChatOpen(true)}
+                            initialSnapshot={initialSnapshot}
                         />
 
                         {/* Chat Interface (Floating) */}

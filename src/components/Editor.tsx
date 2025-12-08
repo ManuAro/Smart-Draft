@@ -265,20 +265,22 @@ export interface EditorRef {
     loadSnapshot: (snapshot: any) => void
     triggerAnalysis: () => void
     getCanvasImage: () => Promise<string | null>
+    getEditor: () => any
 }
 
-const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: () => void }>(({ exerciseStatement, onOpenChat }, ref) => {
+const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: () => void, initialSnapshot?: any }>(({ exerciseStatement, onOpenChat, initialSnapshot }, ref) => {
     const [editor, setEditor] = useState<any>(null)
-    // We need to access triggerAnalysis from the inner component or lift the hook up.
-    // Since the hook is inside EditorContent, we can't access it easily here without context or another ref.
-    // Let's lift the hook up to Editor.
-
-    // Wait, useAIAnalysis uses useEditor(), so it must be inside Tldraw context.
-    // So we can't lift it up to Editor easily because Editor renders Tldraw.
-    // We need a way to communicate from Editor (outside Tldraw) to EditorContent (inside Tldraw).
-    // We can use a ref passed to EditorContent.
+    const [hasLoadedInitialSnapshot, setHasLoadedInitialSnapshot] = useState(false)
 
     const contentRef = useRef<{ triggerAnalysis: () => void, getCanvasImage: () => Promise<string | null> }>(null)
+
+    // Load initial snapshot ONLY ONCE when editor is ready
+    useEffect(() => {
+        if (editor && initialSnapshot && !hasLoadedInitialSnapshot) {
+            loadSnapshot(editor.store, initialSnapshot)
+            setHasLoadedInitialSnapshot(true)
+        }
+    }, [editor, initialSnapshot, hasLoadedInitialSnapshot])
 
     useImperativeHandle(ref, () => ({
         getSnapshot: () => {
@@ -300,7 +302,8 @@ const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: ()
                 return await contentRef.current.getCanvasImage()
             }
             return null
-        }
+        },
+        getEditor: () => editor
     }), [editor])
 
     return (
@@ -310,7 +313,6 @@ const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: ()
                 // REMOVED persistenceKey - we handle persistence manually with our file system
                 // persistenceKey was causing canvas to load previous state from localStorage
                 onMount={(editor) => setEditor(editor)}
-                autoFocus
             >
                 <EditorContent ref={contentRef} exerciseStatement={exerciseStatement} onOpenChat={onOpenChat} />
             </Tldraw>
