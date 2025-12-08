@@ -1,23 +1,55 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useEditor, createShapeId, toRichText, Box } from 'tldraw'
-import { analyzeCanvas } from '../services/openai'
+import { analyzeCanvas, type AIAnnotation } from '../services/openai'
+
+const MIN_BOX_RATIO = 0.02
+const MIN_BOX_PIXEL = 40
 
 export const useAIAnalysis = (exerciseStatement: string, options: { manualTriggerOnly?: boolean } = {}) => {
     const editor = useEditor()
     const [isAnalyzing, setIsAnalyzing] = useState(false)
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
     const lastActivityRef = useRef<number>(Date.now())
+    const labelSlotsRef = useRef<Record<string, number>>({})
 
     // Helper to inject annotation (Marker Style)
-    const injectAnnotation = useCallback((text: string, explanation: string, type: 'warning' | 'info', xPct: number, yPct: number, wPct: number, hPct: number, commonBounds: any) => {
+    const injectAnnotation = useCallback((annotation: AIAnnotation, commonBounds: Box) => {
         if (!editor) return
 
-        // 1. Calculate Absolute Position based on Common Bounds
-        // xPct, yPct are now top-left of the box
-        const boxX = commonBounds.minX + (xPct * commonBounds.width)
-        const boxY = commonBounds.minY + (yPct * commonBounds.height)
-        const boxW = wPct * commonBounds.width
-        const boxH = hPct * commonBounds.height
+        const { text, explanation, type, x: xPct, y: yPct } = annotation
+        const wPct = Math.max(annotation.width ?? MIN_BOX_RATIO, MIN_BOX_RATIO)
+        const hPct = Math.max(annotation.height ?? MIN_BOX_RATIO, MIN_BOX_RATIO)
+
+        const baseWidth = Number.isFinite(commonBounds.width) && commonBounds.width > 0 ? commonBounds.width : 500
+        const baseHeight = Number.isFinite(commonBounds.height) && commonBounds.height > 0 ? commonBounds.height : 500
+        const baseX = Number.isFinite(commonBounds.minX) ? commonBounds.minX : 0
+        const baseY = Number.isFinite(commonBounds.minY) ? commonBounds.minY : 0
+
+        // Special case: success badge
+        if (type === 'success') {
+            const successId = createShapeId()
+            editor.createShape({
+                id: successId,
+                type: 'text',
+                x: baseX + 20,
+                y: baseY - 80,
+                props: {
+                    richText: toRichText(`✔ ${text}`),
+                    color: 'green',
+                    size: 'm',
+                    font: 'sans'
+                },
+                meta: {
+                    explanation
+                }
+            })
+            return
+        }
+
+        const boxX = baseX + (xPct * baseWidth)
+        const boxY = baseY + (yPct * baseHeight)
+        const boxW = Math.max(wPct * baseWidth, MIN_BOX_PIXEL)
+        const boxH = Math.max(hPct * baseHeight, MIN_BOX_PIXEL)
 
         // Calculate center for deduplication and arrow target
         const centerX = boxX + boxW / 2
@@ -67,7 +99,10 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
         // 4. Create Label (Title)
         // Position it to the right of the box
         const labelX = finalX + finalW + 20
-        const labelY = finalY
+        const columnKey = `${Math.round(labelX / 200)}`
+        const stackIndex = labelSlotsRef.current[columnKey] ?? 0
+        labelSlotsRef.current[columnKey] = stackIndex + 1
+        const labelY = finalY + stackIndex * 60
 
         editor.createShape({
             id: textId,
@@ -184,16 +219,10 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
 
                 try {
                     const annotations = await analyzeCanvas(base64data, mode, exerciseStatement)
-
-                    if (annotations.length === 0) {
-                        window.alert("No se encontraron errores o hubo un problema con la IA.")
-                    }
+                    labelSlotsRef.current = {}
 
                     annotations.forEach(ann => {
-                        // Pass width and height (default to small box if missing for some reason)
-                        const w = ann.width || 0.1
-                        const h = ann.height || 0.1
-                        injectAnnotation(ann.text, ann.explanation, ann.type, ann.x, ann.y, w, h, commonBounds)
+                        injectAnnotation(ann, commonBounds)
                     })
 
                     if (isIdle && annotations.length > 0) {
