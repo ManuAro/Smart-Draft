@@ -310,6 +310,7 @@ const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: ()
         <div className="w-full h-full relative bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <Tldraw
                 hideUi={false}
+                autoFocus
                 // REMOVED persistenceKey - we handle persistence manually with our file system
                 // persistenceKey was causing canvas to load previous state from localStorage
                 onMount={(editor) => setEditor(editor)}
