@@ -1,6 +1,10 @@
 import { X, Lightbulb, AlertTriangle, MessageCircle } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { clsx } from 'clsx'
+import ReactMarkdown from 'react-markdown'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
 
 interface AnnotationBubbleProps {
     x: number
@@ -60,9 +64,18 @@ export const AnnotationBubble = ({ x, y, text, explanation, type, onClose, onAsk
                 </button>
             </div>
 
-            <p className="text-sm text-gray-600 leading-relaxed mb-4">
-                {explanation}
-            </p>
+            <div className="text-sm text-gray-600 leading-relaxed mb-4">
+                <ReactMarkdown
+                    remarkPlugins={[remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
+                    components={{
+                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                        code: ({ children }) => <code className="bg-gray-100 px-1 rounded text-xs">{children}</code>
+                    }}
+                >
+                    {explanation}
+                </ReactMarkdown>
+            </div>
 
             <button
                 onClick={() => {

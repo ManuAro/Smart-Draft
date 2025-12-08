@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useEditor, createShapeId, toRichText, Box } from 'tldraw'
 import { analyzeCanvas } from '../services/openai'
-import { logDebug } from '../components/DebugConsole'
 
 export const useAIAnalysis = (exerciseStatement: string, options: { manualTriggerOnly?: boolean } = {}) => {
     const editor = useEditor()
@@ -33,7 +32,6 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
         })
 
         if (isDuplicate) {
-            logDebug("Skipping annotation (Zone Memory active)", { centerX, centerY })
             return
         }
 
@@ -128,18 +126,15 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
 
         if (!force && options.manualTriggerOnly) return
 
-        logDebug("Starting Analysis Loop", { mode, force })
         setIsAnalyzing(true)
 
         try {
             const shapeIds = editor.getCurrentPageShapeIds()
             if (shapeIds.size === 0) {
-                logDebug("No shapes found on canvas")
                 setIsAnalyzing(false)
                 return
             }
 
-            logDebug(`Found ${shapeIds.size} shapes. Capturing SVG...`)
 
             // Calculate Common Bounds of the captured shapes
             // We need this to map the 0-1 coordinates back to the canvas
@@ -166,7 +161,6 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
             )
 
             // 1. Capture Canvas as Image (Blob)
-            logDebug("Attempting editor.toImage...")
 
             // @ts-ignore - toImage likely exists based on grep results
             const result = await (editor as any).toImage([...shapeIds], {
@@ -177,23 +171,19 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
             })
 
             if (!result || !result.blob) {
-                logDebug("Failed to generate image blob", result)
                 setIsAnalyzing(false)
                 return
             }
 
-            logDebug("Image blob generated. Converting to Base64...")
 
             // 2. Convert Blob to Base64
             const reader = new FileReader()
             reader.readAsDataURL(result.blob)
             reader.onloadend = async () => {
                 const base64data = reader.result as string
-                logDebug("Base64 generated. Calling OpenAI...")
 
                 try {
                     const annotations = await analyzeCanvas(base64data, mode, exerciseStatement)
-                    logDebug("OpenAI Response received", annotations)
 
                     if (annotations.length === 0) {
                         window.alert("No se encontraron errores o hubo un problema con la IA.")
@@ -210,22 +200,15 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
                         lastActivityRef.current = Date.now()
                     }
                 } catch (apiError) {
-                    logDebug("OpenAI API Error", apiError)
                     window.alert("Error al conectar con la IA. Por favor verifica tu conexión o la configuración.")
                 }
                 setIsAnalyzing(false)
             }
-            reader.onerror = (e) => {
-                logDebug("Failed to convert blob to base64", e)
+            reader.onerror = () => {
                 setIsAnalyzing(false)
             }
 
         } catch (error: any) {
-            logDebug("Analysis failed with exception", {
-                message: error.message,
-                stack: error.stack,
-                name: error.name
-            })
             setIsAnalyzing(false)
         }
     }, [editor, injectAnnotation, exerciseStatement, options.manualTriggerOnly])

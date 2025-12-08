@@ -18,7 +18,7 @@ interface FileSystemContextType {
     currentFolderId: string | null
     setCurrentFolderId: (id: string | null) => void
     createFolder: (name: string) => void
-    createFile: (name: string, content: any) => void
+    createFile: (name: string, content: any) => string
     deleteItem: (id: string) => void
     renameItem: (id: string, newName: string) => void
     moveItem: (id: string, newParentId: string | null) => void
@@ -70,6 +70,7 @@ export const FileSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             updatedAt: Date.now()
         }
         setItems(prev => [...prev, newFile])
+        return newFile.id
     }
 
     const deleteItem = (id: string) => {

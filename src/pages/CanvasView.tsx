@@ -5,7 +5,6 @@ import Editor, { type EditorRef } from '../components/Editor'
 import { ChatInterface } from '../components/ChatInterface'
 import { useFileSystem } from '../contexts/FileSystemContext'
 import { chatWithAI, type ChatMessage } from '../services/openai'
-import { DebugConsole } from '../components/DebugConsole'
 
 const CanvasView = () => {
     const { folderId, fileId } = useParams()
@@ -14,10 +13,21 @@ const CanvasView = () => {
     const [exerciseStatement, setExerciseStatement] = useState('')
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false)
     const [filename, setFilename] = useState('')
+    const [currentFileId, setCurrentFileId] = useState<string | undefined>(fileId)
 
     const editorRef = useRef<EditorRef>(null)
-    const { createFile, getFile, saveFile } = useFileSystem()
+    const { createFile, getFile, saveFile, setCurrentFolderId } = useFileSystem()
     const [messages, setMessages] = useState<ChatMessage[]>([])
+
+    // Set current folder when component mounts
+    useEffect(() => {
+        if (folderId) {
+            setCurrentFolderId(folderId)
+        }
+        return () => {
+            setCurrentFolderId(null) // Clean up when leaving
+        }
+    }, [folderId, setCurrentFolderId])
 
     // Load existing file if fileId is present
     useEffect(() => {
@@ -26,6 +36,7 @@ const CanvasView = () => {
             if (file && file.content) {
                 setFilename(file.name)
                 setExerciseStatement(file.content.statement || '')
+                setCurrentFileId(fileId)
                 // We need to wait for editor to be ready to load snapshot
                 // This is handled by passing initialSnapshot to Editor or using a ref
                 // For now, let's try to load it when editorRef is available
@@ -53,22 +64,19 @@ const CanvasView = () => {
         const snapshot = editorRef.current?.getSnapshot()
         const content = {
             statement: exerciseStatement,
-            snapshot,
-            parentId: folderId // Save parentId to organize in folders
+            snapshot
         }
 
-        if (fileId) {
+        if (currentFileId) {
             // Update existing file
-            saveFile(fileId, content)
-            // Also rename if changed (not implemented in saveFile but we can use renameItem)
-            // For MVP just save content
+            saveFile(currentFileId, content)
         } else {
             // Create new file
-            createFile(filename, content)
+            const newFileId = createFile(filename, content)
+            setCurrentFileId(newFileId)
         }
 
         setIsSaveModalOpen(false)
-        // Optional: Show success toast
     }
 
 
@@ -114,7 +122,15 @@ const CanvasView = () => {
                     </div>
                     <div className="flex items-center gap-2">
                         <button
-                            onClick={() => setIsSaveModalOpen(true)}
+                            onClick={() => {
+                                if (currentFileId && filename) {
+                                    // Si ya existe el archivo, guardar directamente sin modal
+                                    handleSave()
+                                } else {
+                                    // Si es nuevo, mostrar modal para pedir nombre
+                                    setIsSaveModalOpen(true)
+                                }
+                            }}
                             className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-md transition-colors flex items-center gap-2"
                         >
                             <Save className="w-4 h-4" />
@@ -194,8 +210,6 @@ const CanvasView = () => {
                     </div>
                 </div>
             )}
-
-            <DebugConsole />
         </div>
     )
 }

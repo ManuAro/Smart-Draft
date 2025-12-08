@@ -32,6 +32,32 @@ export const Dashboard = () => {
             </header>
 
             <main className="flex-1 p-8 max-w-6xl mx-auto w-full">
+                {/* Beta Disclaimer */}
+                <div className="mb-8 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6 shadow-sm">
+                    <div className="flex items-start gap-4">
+                        <div className="text-3xl">💡</div>
+                        <div className="flex-1">
+                            <h3 className="font-bold text-gray-900 mb-3">Esta aplicación está en fase beta y sigue en desarrollo.</h3>
+                            <p className="text-gray-700 mb-3">
+                                Por ahora es <strong>100% gratuita</strong>, mientras recopilo feedback real de uso para mejorarla y decidir los próximos pasos.
+                            </p>
+                            <p className="text-gray-700 mb-3">
+                                Si tenés comentarios, sugerencias, ideas o encontrás algún error, te agradecería muchísimo que me lo compartas.
+                                <strong> Tu opinión hace realmente la diferencia.</strong>
+                            </p>
+                            <p className="text-gray-700 mb-3">
+                                Podés escribirme a: <a href="mailto:manuelarocena3@gmail.com" className="text-blue-600 hover:underline font-medium">📧 manuelarocena3@gmail.com</a>
+                            </p>
+                            <p className="text-gray-700 mb-2">
+                                Gracias por probar esta herramienta. Espero que te ayude a estudiar, organizarte y aprender mejor.
+                            </p>
+                            <p className="text-gray-700">
+                                La hice con mucho cariño y me encantaría saber qué te parece. <span className="text-xl">🙌💛</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Create Folder Button */}
                 <div className="mb-6">
                     {!isCreatingFolder ? (

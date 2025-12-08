@@ -1,5 +1,5 @@
 import { useEffect, useState, forwardRef, useImperativeHandle, useRef } from 'react'
-import { Tldraw, useEditor, createShapeId, toRichText, AssetRecordType } from 'tldraw'
+import { Tldraw, useEditor, createShapeId, toRichText, AssetRecordType, getSnapshot, loadSnapshot } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { useAIAnalysis } from '../hooks/useAIAnalysis'
 import { Brain } from 'lucide-react'
@@ -11,7 +11,7 @@ import { AIToolsPanel } from './AIToolsPanel'
 import { generateSolution } from '../services/openai'
 
 // Inner component to access the editor context
-const EditorContent = forwardRef(({ exerciseStatement, onOpenChat }: { exerciseStatement: string, onOpenChat: () => void }, ref) => {
+const EditorContent = forwardRef(({ exerciseStatement, onOpenChat }: { exerciseStatement: string, onOpenChat: (message?: string) => void }, ref) => {
     // Enable manual trigger only for the "Detecta errores" button
     const { isAnalyzing, triggerAnalysis, captureCanvas } = useAIAnalysis(exerciseStatement, { manualTriggerOnly: true })
     const editor = useEditor()
@@ -102,24 +102,18 @@ const EditorContent = forwardRef(({ exerciseStatement, onOpenChat }: { exerciseS
     }
 
     const handleShowSolution = async () => {
-        console.log("handleShowSolution called")
         if (!editor || isGeneratingSolution) {
-            console.log("Editor not ready or already generating", { editor: !!editor, isGeneratingSolution })
             return
         }
         setIsGeneratingSolution(true)
 
         try {
-            console.log("Calling generateSolution with:", exerciseStatement)
-
             // Generate solution based on exercise statement only, not canvas
             const steps = await generateSolution(exerciseStatement, null)
-            console.log("Received steps:", steps)
 
             if (steps.length > 0) {
                 // Find a clear spot to start writing (e.g., to the right of existing content)
                 const bounds = editor.getCurrentPageBounds()
-                console.log("Current bounds:", bounds)
                 let startX = bounds ? bounds.maxX + 50 : 100
                 let startY = bounds ? bounds.minY : 100
 
@@ -129,11 +123,8 @@ const EditorContent = forwardRef(({ exerciseStatement, onOpenChat }: { exerciseS
                     startY = 100
                 }
 
-                console.log("Starting to render at:", { startX, startY })
-
                 // Create a header
                 const headerId = createShapeId()
-                console.log("Creating header shape", headerId)
                 editor.createShape({
                     id: headerId,
                     type: 'text',
@@ -144,8 +135,8 @@ const EditorContent = forwardRef(({ exerciseStatement, onOpenChat }: { exerciseS
                         color: 'blue',
                         size: 'm',
                         font: 'draw',
-                        w: 600, // Set a fixed width to force wrapping if needed, though header usually short
-                        autoSize: false // Disable autoSize to respect width if we set it, or keep true for header
+                        w: 600,
+                        autoSize: false
                     }
                 })
 
@@ -154,10 +145,8 @@ const EditorContent = forwardRef(({ exerciseStatement, onOpenChat }: { exerciseS
                 const headerBounds = editor.getShapePageBounds(headerId)
                 startY += (headerBounds?.h || 40) + 20
 
-                // We can't use forEach with async/await nicely for sequential layout
-                // Use for...of loop
+                // Use for...of loop for sequential layout
                 for (const [index, step] of steps.entries()) {
-                    console.log("Creating step shape", index)
                     // Explanation
                     const stepId = createShapeId()
                     editor.createShape({
@@ -170,8 +159,8 @@ const EditorContent = forwardRef(({ exerciseStatement, onOpenChat }: { exerciseS
                             color: 'black',
                             size: 's',
                             font: 'sans',
-                            w: 800, // Set a max width for the text to wrap
-                            autoSize: false // Important: disable autoSize so it wraps at 'w'
+                            w: 800,
+                            autoSize: false
                         }
                     })
 
@@ -183,12 +172,11 @@ const EditorContent = forwardRef(({ exerciseStatement, onOpenChat }: { exerciseS
                     // Math/Latex
                     if (step.latex) {
                         const height = await renderMath(step.latex, startX + 20, startY)
-                        startY += height + 20 // Add height of math image + 20 for spacing
+                        startY += height + 20
                     }
 
                     startY += 20 // Spacing between steps
                 }
-                console.log("Creation finished")
             } else {
                 console.warn("No steps returned from API")
             }
@@ -295,13 +283,13 @@ const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: ()
     useImperativeHandle(ref, () => ({
         getSnapshot: () => {
             if (editor) {
-                return editor.store.getSnapshot()
+                return getSnapshot(editor.store)
             }
             return null
         },
         loadSnapshot: (snapshot: any) => {
             if (editor && snapshot) {
-                editor.store.loadSnapshot(snapshot)
+                loadSnapshot(editor.store, snapshot)
             }
         },
         triggerAnalysis: () => {
