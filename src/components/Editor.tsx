@@ -282,6 +282,21 @@ const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: ()
         }
     }, [editor, initialSnapshot, hasLoadedInitialSnapshot])
 
+    // Force focus on editor when it mounts to prevent toolbar from hiding
+    useEffect(() => {
+        if (editor) {
+            // Focus immediately
+            editor.focus()
+
+            // Also focus after a small delay to ensure it sticks
+            const timer = setTimeout(() => {
+                editor.focus()
+            }, 100)
+
+            return () => clearTimeout(timer)
+        }
+    }, [editor])
+
     useImperativeHandle(ref, () => ({
         getSnapshot: () => {
             if (editor) {
