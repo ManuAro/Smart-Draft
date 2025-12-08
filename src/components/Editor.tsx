@@ -271,29 +271,31 @@ export interface EditorRef {
 const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: () => void, initialSnapshot?: any }>(({ exerciseStatement, onOpenChat, initialSnapshot }, ref) => {
     const [editor, setEditor] = useState<any>(null)
     const [hasLoadedInitialSnapshot, setHasLoadedInitialSnapshot] = useState(false)
+    const hasInitialized = useRef(false)
 
     const contentRef = useRef<{ triggerAnalysis: () => void, getCanvasImage: () => Promise<string | null> }>(null)
 
     // Load initial snapshot ONLY ONCE when editor is ready
     useEffect(() => {
-        if (editor && initialSnapshot && !hasLoadedInitialSnapshot) {
+        if (editor && initialSnapshot && !hasLoadedInitialSnapshot && !hasInitialized.current) {
             loadSnapshot(editor.store, initialSnapshot)
             setHasLoadedInitialSnapshot(true)
+            hasInitialized.current = true
         }
     }, [editor, initialSnapshot, hasLoadedInitialSnapshot])
 
     // Force focus on editor when it mounts to prevent toolbar from hiding
     useEffect(() => {
-        if (editor) {
+        if (editor && !hasInitialized.current) {
+            hasInitialized.current = true
+
             // Focus immediately
             editor.focus()
 
             // Also focus after a small delay to ensure it sticks
-            const timer = setTimeout(() => {
+            setTimeout(() => {
                 editor.focus()
             }, 100)
-
-            return () => clearTimeout(timer)
         }
     }, [editor])
 

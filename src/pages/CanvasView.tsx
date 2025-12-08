@@ -157,6 +157,7 @@ const CanvasView = () => {
                     {/* Canvas - Full Width */}
                     <div className="flex-1 relative bg-white">
                         <Editor
+                            key={currentFileId || 'new-exercise'}
                             ref={editorRef}
                             exerciseStatement={exerciseStatement}
                             onOpenChat={() => setIsChatOpen(true)}
