@@ -162,6 +162,7 @@ const CanvasView = () => {
                             exerciseStatement={exerciseStatement}
                             onOpenChat={() => setIsChatOpen(true)}
                             initialSnapshot={initialSnapshot}
+                            fileId={currentFileId}
                         />
 
                         {/* Chat Interface (Floating) */}

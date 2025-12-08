@@ -6,6 +6,7 @@ import { Brain } from 'lucide-react'
 import { AnnotationBubble } from './AnnotationBubble'
 import { Calculator } from './Calculator'
 import { AIToolsPanel } from './AIToolsPanel'
+import { DebugConsole } from './DebugConsole'
 
 
 import { generateSolution } from '../services/openai'
@@ -268,7 +269,7 @@ export interface EditorRef {
     getEditor: () => any
 }
 
-const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: () => void, initialSnapshot?: any }>(({ exerciseStatement, onOpenChat, initialSnapshot }, ref) => {
+const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: () => void, initialSnapshot?: any, fileId?: string }>(({ exerciseStatement, onOpenChat, initialSnapshot, fileId }, ref) => {
     const [editor, setEditor] = useState<any>(null)
     const [hasLoadedInitialSnapshot, setHasLoadedInitialSnapshot] = useState(false)
     const hasInitialized = useRef(false)
@@ -334,6 +335,17 @@ const Editor = forwardRef<EditorRef, { exerciseStatement: string, onOpenChat: ()
             >
                 <EditorContent ref={contentRef} exerciseStatement={exerciseStatement} onOpenChat={onOpenChat} />
             </Tldraw>
+
+            {/* Debug Console */}
+            <DebugConsole
+                editorState={{
+                    hasEditor: !!editor,
+                    hasInitialized: hasInitialized.current,
+                    hasLoadedSnapshot: hasLoadedInitialSnapshot,
+                    initialSnapshotExists: !!initialSnapshot,
+                    fileId: fileId
+                }}
+            />
         </div>
     )
 })
