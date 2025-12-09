@@ -126,7 +126,10 @@ Reglas:
         })
 
         const data = await response.json()
-        const content = data.choices[0].message.content || "Lo siento, no pude generar una respuesta."
+        let content = data.choices[0].message.content || "Lo siento, no pude generar una respuesta."
+
+        // Fix double-escaped backslashes in LaTeX (\\\\int -> \\int)
+        content = content.replace(/\\\\\\\\/g, '\\\\')
 
         return res.status(200).json({ content })
 

@@ -63,9 +63,18 @@ const sanitizeAnnotation = (annotation: any) => {
     const safeWidth = clamp01(annotation.width ?? MIN_BOX_RATIO)
     const safeHeight = clamp01(annotation.height ?? MIN_BOX_RATIO)
 
+    // Fix double-escaped backslashes in LaTeX (\\\\int -> \\int)
+    const cleanText = (text: string) => {
+        if (!text) return text
+        // Replace double backslashes with single backslashes for LaTeX commands
+        return text.replace(/\\\\\\\\/g, '\\\\')
+    }
+
     return {
         ...annotation,
         id: annotation.id ?? randomUUID(),
+        text: cleanText(annotation.text),
+        explanation: cleanText(annotation.explanation),
         x: clamp01(annotation.x ?? 0),
         y: clamp01(annotation.y ?? 0),
         width: safeWidth < MIN_BOX_RATIO ? MIN_BOX_RATIO : safeWidth,
@@ -145,8 +154,9 @@ Reglas:
 - FORMATO DE MATEMÁTICAS OBLIGATORIO:
   * SIEMPRE encierra expresiones matemáticas entre delimitadores LaTeX: $...$ para inline o $$...$$ para display.
   * NUNCA escribas comandos LaTeX sin delimitadores (por ejemplo, NUNCA escribas "\\frac{a}{b}" solo, siempre debe ser "$\\frac{a}{b}$").
+  * Usa backslashes simples en JSON: "\\frac" no "\\\\frac", "\\int" no "\\\\int"
   * Ejemplos CORRECTOS: "El resultado es $\\frac{au^4}{3}$", "Debería ser $$x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}$$"
-  * Ejemplos INCORRECTOS: "El resultado es \\frac{au^4}{3}", "Debería ser x = \\frac{-b}{2a}"
+  * Ejemplos INCORRECTOS: "El resultado es \\frac{au^4}{3}", "Debería ser x = \\frac{-b}{2a}", "$$\\\\int x dx$$" (doble backslash)
 - Proporciona un bounding box preciso para cada anotación (x, y, width, height en rango 0-1).
 - Evita mencionar prolijidad, caligrafía u otros aspectos estéticos.
 - Nunca generes anotaciones superpuestas si puedes agruparlas.
