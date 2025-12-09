@@ -104,7 +104,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { imageDataUrl, mode, exerciseStatement } = req.body
 
     let derivedContext: string | null = null
-    if (needsCanvasContext(exerciseStatement)) {
+    if (needsCanvasContext(exerciseStatement) && imageDataUrl) {
         derivedContext = await describeCanvas(imageDataUrl)
     }
 
@@ -197,14 +197,32 @@ Reglas:
             })
         })
 
+        if (!response.ok) {
+            const errorPayload = await response.json().catch(() => ({}))
+            console.error('OpenAI analyze error response', errorPayload)
+            return res.status(500).json({ error: 'OpenAI analyze request failed', details: errorPayload })
+        }
+
         const data = await response.json()
-        const content = data.choices[0].message.content
+
+        if (data?.error) {
+            console.error('OpenAI analyze error payload', data.error)
+            return res.status(500).json({ error: 'OpenAI analyze error', details: data.error })
+        }
+
+        const content = data?.choices?.[0]?.message?.content
 
         if (!content) {
             return res.status(200).json({ annotations: [] })
         }
 
-        const result = JSON.parse(content)
+        let result: any
+        try {
+            result = JSON.parse(content)
+        } catch (parseError) {
+            console.error('Failed to parse OpenAI analyze content', content)
+            return res.status(500).json({ error: 'Invalid response format from OpenAI analyze' })
+        }
         const sanitized = filterAnnotations(result.annotations || [])
 
         if (sanitized.length === 0) {
