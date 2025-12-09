@@ -59,6 +59,29 @@ async function describeCanvas(imageDataUrl: string): Promise<string | null> {
     }
 }
 
+const restoreLatexEscapes = (text: string) => {
+    if (!text) return text
+
+    const escapeMap: Record<string, string> = {
+        '\b': 'b',
+        '\f': 'f',
+        '\r': 'r',
+        '\t': 't'
+    }
+
+    let restored = ''
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i]
+        if (char in escapeMap) {
+            const letter = escapeMap[char as keyof typeof escapeMap]
+            restored += '\\' + letter
+        } else {
+            restored += char
+        }
+    }
+    return restored
+}
+
 const sanitizeAnnotation = (annotation: any) => {
     const safeWidth = clamp01(annotation.width ?? MIN_BOX_RATIO)
     const safeHeight = clamp01(annotation.height ?? MIN_BOX_RATIO)
@@ -68,7 +91,7 @@ const sanitizeAnnotation = (annotation: any) => {
         if (!text) return text
         console.log('🔍 cleanText input:', text)
 
-        let cleaned = text
+        let cleaned = restoreLatexEscapes(text)
 
         // Emergency fix: Add backslashes to common LaTeX commands that are missing them
         // This catches when AI sends "frac" instead of "\frac"
@@ -328,16 +351,6 @@ REGLAS CRÍTICAS:
         const sanitized = filterAnnotations(result.annotations || [])
         console.log('✅ After sanitization:', JSON.stringify(sanitized, null, 2))
 
-        // Double-escape backslashes for JSON transmission
-        // When res.json() serializes, single backslashes get interpreted
-        // So we need to send double backslashes to preserve them
-        const forTransmission = sanitized.map((ann: any) => ({
-            ...ann,
-            text: ann.text?.replace(/\\/g, '\\\\'),
-            explanation: ann.explanation?.replace(/\\/g, '\\\\')
-        }))
-        console.log('📤 Ready for transmission:', JSON.stringify(forTransmission[0]?.explanation?.substring(0, 100)))
-
         if (sanitized.length === 0) {
             return res.status(200).json({
                 annotations: [{
@@ -352,7 +365,13 @@ REGLAS CRÍTICAS:
             })
         }
 
-        return res.status(200).json({ annotations: forTransmission })
+        // Send raw JSON manually to preserve backslashes
+        const jsonString = JSON.stringify({ annotations: sanitized })
+        console.log('📤 Sending response length:', jsonString.length)
+        console.log('📤 Sample:', jsonString.substring(0, 150))
+
+        res.setHeader('Content-Type', 'application/json')
+        return res.status(200).send(jsonString)
 
     } catch (error) {
         console.error("Error calling OpenAI:", error)
