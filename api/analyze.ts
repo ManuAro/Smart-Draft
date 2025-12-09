@@ -82,6 +82,37 @@ const restoreLatexEscapes = (text: string) => {
     return restored
 }
 
+const LATEX_COMMANDS = [
+    'frac', 'int', 'sum', 'prod', 'lim', 'sqrt',
+    'theta', 'pi', 'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'sigma', 'omega',
+    'sin', 'cos', 'tan', 'log', 'ln',
+    'bigg', 'Big', 'left', 'right',
+    'infty', 'cdot', 'times', 'div'
+]
+
+const fixLatexCommands = (segment: string) => {
+    let fixed = segment
+    LATEX_COMMANDS.forEach(cmd => {
+        const regex = new RegExp(`(?<!\\\\)\\b${cmd}\\b`, 'g')
+        fixed = fixed.replace(regex, `\\${cmd}`)
+    })
+    fixed = fixed.replace(/\\textstyle\s*/g, '')
+    return fixed
+}
+
+const normalizeMathSegments = (text: string) => {
+    const applyToDelimiters = (input: string, pattern: RegExp) => {
+        return input.replace(pattern, (_match, open, content, close) => {
+            return `${open}${fixLatexCommands(content)}${close}`
+        })
+    }
+
+    let normalized = applyToDelimiters(text, /(\${1,2})([\s\S]*?)(\1)/g)
+    normalized = applyToDelimiters(normalized, /(\\\(|\\\[)([\s\S]*?)(\\\)|\\\])/g)
+
+    return normalized
+}
+
 const sanitizeAnnotation = (annotation: any) => {
     const safeWidth = clamp01(annotation.width ?? MIN_BOX_RATIO)
     const safeHeight = clamp01(annotation.height ?? MIN_BOX_RATIO)
@@ -92,26 +123,7 @@ const sanitizeAnnotation = (annotation: any) => {
         console.log('🔍 cleanText input:', text)
 
         let cleaned = restoreLatexEscapes(text)
-
-        // Emergency fix: Add backslashes to common LaTeX commands that are missing them
-        // This catches when AI sends "frac" instead of "\frac"
-        const latexCommands = [
-            'frac', 'int', 'sum', 'prod', 'lim', 'sqrt',
-            'theta', 'pi', 'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'sigma', 'omega',
-            'sin', 'cos', 'tan', 'log', 'ln',
-            'bigg', 'Big', 'left', 'right',
-            'infty', 'cdot', 'times', 'div'
-        ]
-
-        // Add backslash before commands that are missing it (within $$...$$ blocks)
-        latexCommands.forEach(cmd => {
-            // Match the command only if it's NOT already preceded by a backslash
-            const regex = new RegExp(`(?<!\\\\)\\b${cmd}\\b`, 'g')
-            cleaned = cleaned.replace(regex, `\\${cmd}`)
-        })
-
-        // Remove unnecessary \textstyle commands
-        cleaned = cleaned.replace(/\\textstyle\s*/g, '')
+        cleaned = normalizeMathSegments(cleaned)
 
         if (text !== cleaned) {
             console.log('🔧 Sanitized:', { before: text, after: cleaned })
