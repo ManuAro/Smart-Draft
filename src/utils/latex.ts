@@ -6,7 +6,7 @@ const SUBSCRIPT_REGEX = /[a-zA-Z0-9]\s*_\s*\{[^}]+\}/g
 const BIG_OP_REGEX = /\\(int|sum|prod|lim|log|ln|sin|cos|tan|sec|csc|cot|arcsin|arccos|arctan)\b/g
 const GREEK_REGEX = /\\(alpha|beta|gamma|delta|epsilon|theta|lambda|mu|pi|sigma|omega|Alpha|Beta|Gamma|Delta|Theta|Lambda|Pi|Sigma|Omega)\b/g
 
-const restoreLatexEscapes = (text: string) => {
+export const restoreLatexEscapes = (text: string) => {
     const escapeMap: Record<string, string> = {
         '\b': 'b',
         '\f': 'f',
