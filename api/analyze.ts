@@ -189,16 +189,38 @@ Reglas de severidad:
 - type "suggestion": mejora metodológica que NO invalida el resultado (puede simplificar más, puede usar otro método, falta justificar un paso)
 - type "success": el resultado final es MATEMÁTICAMENTE CORRECTO
 - type "reference": referencia a error ya corregido previamente (texto "ArrastraError")
-- FORMATO DE MATEMÁTICAS OBLIGATORIO - Copia este formato literal en tu JSON response:
+- FORMATO DE ANOTACIONES - Sigue este formato exactamente:
+
 {
-  "explanation": "La integral $$\\int_0^{\\pi} x^2 dx$$ resulta en $$\\frac{\\pi^3}{3}$$"
+  "text": "Título corto (2-4 palabras)",
+  "explanation": "Explicación detallada con fórmulas LaTeX"
 }
 
-IMPORTANTE: En el string JSON, los comandos LaTeX deben tener UN backslash: \\int (no \\\\int)
-Cuando generes el JSON, escribe exactamente: "$$\\int" NO "$$\\\\int"
-El parser de JSON convertirá \\int automáticamente.
+Ejemplos CORRECTOS:
 
-PROHIBIDO: \\textstyle, \\displaystyle, \\text{}, comandos LaTeX sin delimitadores $
+// Error en integral
+{
+  "text": "Límite de integración incorrecto",
+  "explanation": "El límite superior debe ser $$\\frac{\\pi}{2}$$ no $$\\pi$$. Al evaluar $$\\int_0^{\\frac{\\pi}{2}} x^2 dx = \\frac{x^3}{3}\\bigg|_0^{\\frac{\\pi}{2}}$$ obtenemos $$\\frac{\\pi^3}{24}$$."
+}
+
+// Sugerencia
+{
+  "text": "Puede simplificarse más",
+  "explanation": "El resultado $$\\frac{2\\pi}{4}$$ puede simplificarse a $$\\frac{\\pi}{2}$$."
+}
+
+// Éxito
+{
+  "text": "¡Resultado correcto!",
+  "explanation": "Excelente trabajo. La integral $$\\int_0^{\\pi} x^2 dx = \\frac{\\pi^3}{3}$$ está perfectamente resuelta."
+}
+
+REGLAS:
+- "text": Título conciso, sin fórmulas (máximo 5 palabras)
+- "explanation": Detalle completo con LaTeX usando $$...$$
+- LaTeX: UN backslash en JSON (\\int no \\\\int)
+- PROHIBIDO: \\textstyle, \\displaystyle, \\text{}
 - Proporciona un bounding box preciso para cada anotación (x, y, width, height en rango 0-1).
 - Evita mencionar prolijidad, caligrafía u otros aspectos estéticos.
 - Nunca generes anotaciones superpuestas si puedes agruparlas.
