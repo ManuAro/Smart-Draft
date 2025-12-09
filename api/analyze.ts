@@ -318,6 +318,7 @@ REGLAS CRÍTICAS:
 
         let result: any
         try {
+            console.log('📜 Raw JSON string from AI:', content)
             result = JSON.parse(content)
             console.log('📥 Raw parsed annotations:', JSON.stringify(result.annotations, null, 2))
         } catch (parseError) {
