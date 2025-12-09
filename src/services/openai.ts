@@ -39,6 +39,9 @@ export const analyzeCanvas = async (
         // Debug: Log raw annotations to inspect formatting issues
         if (data.annotations && data.annotations.length > 0) {
             console.log('🔍 Raw AI annotations:', data.annotations)
+            console.log('🔍 First annotation explanation:', data.annotations[0].explanation)
+            console.log('🔍 First annotation explanation length:', data.annotations[0].explanation?.length)
+            console.log('🔍 Has backslashes?', data.annotations[0].explanation?.includes('\\'))
         }
 
         return data.annotations || []
