@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto'
 
 const apiKey = process.env.OPENAI_API_KEY
 
-const PRIMARY_MODEL = 'gpt-4o-mini'
+const PRIMARY_MODEL = 'gpt-4o' // Using full gpt-4o for better mathematical accuracy
 const MIN_STATEMENT_CHARS = 40
 const IRRELEVANT_KEYWORDS = ['prolijidad', 'presentación', 'orden', 'limpieza', 'estética', 'legible', 'caligrafía', 'formato', 'dibujo', 'alineación', 'márgenes']
 const MIN_BOX_RATIO = 0.02
@@ -132,8 +132,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ].filter(Boolean).join('\n\n')
 
     const prompt = mode === 'active'
-        ? "1) Verifica si el RESULTADO FINAL que aparece en la hoja coincide con la solución correcta. Si es correcto, devuelve una sola anotación tipo success celebrando el resultado e incluye sugerencias solo como type 'suggestion'.\n2) Si encuentras errores matemáticos (operaciones incorrectas, omisiones, conclusiones inválidas), devuelve type 'warning'.\n3) Cuando notes oportunidades de mejora que no afectan la corrección (por ejemplo, detallar un paso, usar otra técnica), usa type 'suggestion'.\n4) Si detectas un error corregido recientemente y sólo quieres dejar referencia, usa type 'reference' con el texto 'ArrastraError' sin remarcarlo.\n5) Nunca menciones prolijidad ni estética.\n6) Cada anotación debe mapearse a su región exacta en la imagen."
-        : "El estudiante estuvo inactivo. Ofrece una sola sugerencia concreta para continuar, marcada como type 'suggestion', apuntando a la región relevante."
+        ? `ANÁLISIS ACTIVO - El estudiante está trabajando:
+
+1. VERIFICA EL RESULTADO FINAL con máximo rigor:
+   - Resuelve el ejercicio tú mismo paso a paso
+   - Compara tu resultado con el del estudiante
+   - Si coinciden → type "success" celebrando el logro
+   - Si difieren → type "warning" explicando el error específico
+
+2. REVISA PASOS INTERMEDIOS:
+   - Derivadas: verifica reglas aplicadas (cadena, producto, cociente)
+   - Integrales: verifica límites, sustituciones, constantes
+   - Álgebra: verifica signos, simplificaciones, factorizaciones
+   - Solo marca "warning" si hay ERROR CONFIRMADO
+
+3. SUGERENCIAS CONSTRUCTIVAS (type "suggestion"):
+   - Métodos alternativos más eficientes
+   - Pasos que podrían detallarse más
+   - Verificaciones adicionales recomendadas
+
+4. PRECISIÓN EN BOUNDING BOXES:
+   - Marca exactamente la región del error/sugerencia
+   - No marques toda la hoja si el error es específico
+
+NO menciones estética, prolijidad o presentación.`
+        : "MODO INACTIVO: El estudiante lleva >1min sin escribir. Ofrece UNA sugerencia concreta para continuar (type 'suggestion'), señalando la próxima acción recomendada."
 
     try {
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -147,17 +170,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 messages: [
                     {
                         role: "system",
-                        content: `Eres un asistente experto corrigiendo ejercicios de matemática con énfasis en el resultado final.
+                        content: `Eres un profesor experto de matemática universitaria corrigiendo ejercicios con máximo rigor académico.
+
 Problema a corregir:
 ${combinedStatement}
 
-Reglas:
-- Prioridad absoluta: confirma si el resultado final escrito por el estudiante es correcto. Si lo es, responde con type "success" (sin más errores) y, si aplica, agrega recomendaciones como type "suggestion".
-- Diferencia severidades:
-  * type "warning": error matemático real (operación incorrecta, paso faltante, conclusión errónea).
-  * type "suggestion": mejora opcional que no invalida el resultado.
-  * type "reference": sólo referencia un error pasado ya corregido (usa texto "ArrastraError").
-  * type "success": todo correcto.
+METODOLOGÍA DE CORRECCIÓN:
+1. Lee cuidadosamente el enunciado y reconoce qué se pide resolver
+2. Identifica el resultado final que escribió el estudiante
+3. Resuelve mentalmente el ejercicio paso a paso para verificar
+4. Compara tu resultado con el del estudiante
+5. Verifica operaciones intermedias (derivadas, integrales, álgebra)
+6. Solo marca errores si estás 100% seguro - en caso de duda, usa type "suggestion"
+
+Reglas de severidad:
+- type "warning": ERROR MATEMÁTICO CONFIRMADO (cálculo incorrecto, signo equivocado, límite erróneo, resultado final incorrecto)
+- type "suggestion": mejora metodológica que NO invalida el resultado (puede simplificar más, puede usar otro método, falta justificar un paso)
+- type "success": el resultado final es MATEMÁTICAMENTE CORRECTO
+- type "reference": referencia a error ya corregido previamente (texto "ArrastraError")
 - FORMATO DE MATEMÁTICAS OBLIGATORIO - Copia este formato literal en tu JSON response:
 {
   "explanation": "La integral $$\\int_0^{\\pi} x^2 dx$$ resulta en $$\\frac{\\pi^3}{3}$$"
