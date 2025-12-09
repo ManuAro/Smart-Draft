@@ -66,9 +66,14 @@ const sanitizeAnnotation = (annotation: any) => {
     // Fix double-escaped backslashes in LaTeX (\\int -> \int in actual string)
     const cleanText = (text: string) => {
         if (!text) return text
+        const before = text
         // Replace double backslashes with single backslashes for LaTeX commands
         // In the parsed JSON string, \\\\ appears as \\, so we replace \\ with \
-        return text.replace(/\\\\/g, '\\')
+        const after = text.replace(/\\\\/g, '\\')
+        if (before !== after) {
+            console.log('🔧 Sanitized:', { before, after })
+        }
+        return after
     }
 
     return {
@@ -154,13 +159,12 @@ Reglas:
   * type "success": todo correcto.
 - FORMATO DE MATEMÁTICAS OBLIGATORIO:
   * SIEMPRE encierra expresiones matemáticas entre delimitadores LaTeX: $...$ para inline o $$...$$ para display.
-  * NUNCA escribas comandos LaTeX sin delimitadores.
-  * El único formato JSON permitido (sin modificar caracteres ni espacios) es:
-    {
-      "explanation": "La integral $$\\int_0^{\\pi} x^2 dx$$ se evalúa como $$\\frac{x^3}{3}\\bigg|_0^{\\pi}$$"
-    }
-  * Ejemplos CORRECTOS en JSON: "$$\\int x dx$$", "$\\frac{a}{b}$", "$$\\sum_{i=1}^n i$$"
-  * Ejemplos INCORRECTOS: "$$\\\\int x dx$$" (doble backslash), "\\frac{a}{b}" (sin delimitadores $)
+  * Usa UN SOLO backslash antes de comandos LaTeX: \\int, \\frac, \\pi (NO \\\\int, NO \\\\frac, NO \\\\pi)
+  * NO uses \\text{} para constantes matemáticas como pi - usa \\pi directamente
+  * El ÚNICO formato JSON permitido es:
+    "explanation": "La integral $$\\int_0^{\\pi} x^2 dx$$ resulta en $$\\frac{\\pi^3}{3}$$"
+  * Ejemplos CORRECTOS: "$$\\int x dx$$", "$\\frac{a}{b}$", "$$\\frac{\\pi^3}{3}$$"
+  * Ejemplos PROHIBIDOS: "$$\\\\int x dx$$", "\\frac{a}{b}" (sin $), "\\text{\\pi}" (usa \\pi)
 - Proporciona un bounding box preciso para cada anotación (x, y, width, height en rango 0-1).
 - Evita mencionar prolijidad, caligrafía u otros aspectos estéticos.
 - Nunca generes anotaciones superpuestas si puedes agruparlas.
@@ -237,11 +241,13 @@ Reglas:
         let result: any
         try {
             result = JSON.parse(content)
+            console.log('📥 Raw parsed annotations:', JSON.stringify(result.annotations, null, 2))
         } catch (parseError) {
             console.error('Failed to parse OpenAI analyze content', content)
             return res.status(500).json({ error: 'Invalid response format from OpenAI analyze' })
         }
         const sanitized = filterAnnotations(result.annotations || [])
+        console.log('✅ After sanitization:', JSON.stringify(sanitized, null, 2))
 
         if (sanitized.length === 0) {
             return res.status(200).json({
