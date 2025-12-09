@@ -63,11 +63,12 @@ const sanitizeAnnotation = (annotation: any) => {
     const safeWidth = clamp01(annotation.width ?? MIN_BOX_RATIO)
     const safeHeight = clamp01(annotation.height ?? MIN_BOX_RATIO)
 
-    // Fix double-escaped backslashes in LaTeX (\\\\int -> \\int)
+    // Fix double-escaped backslashes in LaTeX (\\int -> \int in actual string)
     const cleanText = (text: string) => {
         if (!text) return text
         // Replace double backslashes with single backslashes for LaTeX commands
-        return text.replace(/\\\\\\\\/g, '\\\\')
+        // In the parsed JSON string, \\\\ appears as \\, so we replace \\ with \
+        return text.replace(/\\\\/g, '\\')
     }
 
     return {
@@ -153,10 +154,13 @@ Reglas:
   * type "success": todo correcto.
 - FORMATO DE MATEMÁTICAS OBLIGATORIO:
   * SIEMPRE encierra expresiones matemáticas entre delimitadores LaTeX: $...$ para inline o $$...$$ para display.
-  * NUNCA escribas comandos LaTeX sin delimitadores (por ejemplo, NUNCA escribas "\\frac{a}{b}" solo, siempre debe ser "$\\frac{a}{b}$").
-  * Usa backslashes simples en JSON: "\\frac" no "\\\\frac", "\\int" no "\\\\int"
-  * Ejemplos CORRECTOS: "El resultado es $\\frac{au^4}{3}$", "Debería ser $$x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}$$"
-  * Ejemplos INCORRECTOS: "El resultado es \\frac{au^4}{3}", "Debería ser x = \\frac{-b}{2a}", "$$\\\\int x dx$$" (doble backslash)
+  * NUNCA escribas comandos LaTeX sin delimitadores.
+  * El único formato JSON permitido (sin modificar caracteres ni espacios) es:
+    {
+      "explanation": "La integral $$\\int_0^{\\pi} x^2 dx$$ se evalúa como $$\\frac{x^3}{3}\\bigg|_0^{\\pi}$$"
+    }
+  * Ejemplos CORRECTOS en JSON: "$$\\int x dx$$", "$\\frac{a}{b}$", "$$\\sum_{i=1}^n i$$"
+  * Ejemplos INCORRECTOS: "$$\\\\int x dx$$" (doble backslash), "\\frac{a}{b}" (sin delimitadores $)
 - Proporciona un bounding box preciso para cada anotación (x, y, width, height en rango 0-1).
 - Evita mencionar prolijidad, caligrafía u otros aspectos estéticos.
 - Nunca generes anotaciones superpuestas si puedes agruparlas.

@@ -84,9 +84,9 @@ Reglas:
 3. Si notas un error, descríbelo y sugiere cómo corregirlo, priorizando el resultado final.
 4. FORMATO DE MATEMÁTICAS OBLIGATORIO:
    - SIEMPRE encierra expresiones matemáticas entre delimitadores LaTeX: $...$ para inline o $$...$$ para display.
-   - NUNCA escribas comandos LaTeX sin delimitadores (por ejemplo, NUNCA escribas "\\frac{a}{b}" solo, siempre debe ser "$\\frac{a}{b}$").
-   - Ejemplos CORRECTOS: "El resultado es $\\frac{au^4}{3}$", "Prueba con $$x = \\frac{-b}{2a}$$"
-   - Ejemplos INCORRECTOS: "El resultado es \\frac{au^4}{3}", "Prueba con x = \\frac{-b}{2a}"
+   - NUNCA escribas comandos LaTeX sin delimitadores.
+   - Ejemplos CORRECTOS: "La integral $$\\int_0^{\\pi} x^2 dx$$ resulta en $\\frac{\\pi^3}{3}$"
+   - Ejemplos INCORRECTOS: "$$\\\\int x dx$$" (doble backslash), "\\frac{a}{b}" (sin delimitadores $)
 5. Si el ejercicio ya está correcto, confírmalo y ofrece mejoras sólo como sugerencias.`
 
     const apiMessages: any[] = [
@@ -128,8 +128,8 @@ Reglas:
         const data = await response.json()
         let content = data.choices[0].message.content || "Lo siento, no pude generar una respuesta."
 
-        // Fix double-escaped backslashes in LaTeX (\\\\int -> \\int)
-        content = content.replace(/\\\\\\\\/g, '\\\\')
+        // Fix double-escaped backslashes in LaTeX (\\int -> \int)
+        content = content.replace(/\\\\/g, '\\')
 
         return res.status(200).json({ content })
 

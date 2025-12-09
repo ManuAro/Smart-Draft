@@ -112,10 +112,16 @@ Instrucciones:
 4. Cada paso debe incluir:
    - explanation: descripción clara en español (si incluye matemáticas, usa delimitadores LaTeX: $...$).
    - latex: expresión LaTeX PURO sin delimitadores $ (KaTeX lo envolverá automáticamente).
-5. FORMATO DE MATEMÁTICAS EN EXPLANATION:
-   - Si mencionas fórmulas en la explicación, usa delimitadores: "Se aplica $\\frac{d}{dx}x^n = nx^{n-1}$"
-   - NUNCA escribas comandos LaTeX sin delimitadores en la explicación.
-6. Usa LaTeX estándar (\\frac{}, \\sqrt{}, potencias, integrales, etc.) para TODA matemática.
+5. FORMATO DE MATEMÁTICAS:
+   - En explanation: usa delimitadores $...$ si mencionas fórmulas
+   - En latex: LaTeX puro sin $ (se agregará automáticamente)
+   - Ejemplo JSON correcto:
+     {
+       "explanation": "Aplicamos la regla $\\int x^n dx = \\frac{x^{n+1}}{n+1}$",
+       "latex": "\\int_0^{\\pi} x^2 dx = \\frac{x^3}{3}\\bigg|_0^{\\pi}"
+     }
+   - INCORRECTO: "$$\\\\int x dx$$" (doble backslash)
+6. Usa LaTeX estándar (\\frac{}, \\sqrt{}, \\int, etc.) para TODA matemática.
 `
                     },
                     {
@@ -161,12 +167,12 @@ Instrucciones:
 
         const result = JSON.parse(content)
 
-        // Fix double-escaped backslashes in LaTeX for all steps
+        // Fix double-escaped backslashes in LaTeX for all steps (\\int -> \int)
         if (result.steps && Array.isArray(result.steps)) {
             result.steps = result.steps.map((step: any) => ({
                 ...step,
-                explanation: step.explanation?.replace(/\\\\\\\\/g, '\\\\'),
-                latex: step.latex?.replace(/\\\\\\\\/g, '\\\\')
+                explanation: step.explanation?.replace(/\\\\/g, '\\'),
+                latex: step.latex?.replace(/\\\\/g, '\\')
             }))
         }
 
