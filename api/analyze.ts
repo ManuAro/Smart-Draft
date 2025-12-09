@@ -69,11 +69,26 @@ const sanitizeAnnotation = (annotation: any) => {
         console.log('🔍 cleanText input:', text)
 
         let cleaned = text
+
+        // Emergency fix: Add backslashes to common LaTeX commands that are missing them
+        // This catches when AI sends "frac" instead of "\frac"
+        const latexCommands = [
+            'frac', 'int', 'sum', 'prod', 'lim', 'sqrt',
+            'theta', 'pi', 'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'sigma', 'omega',
+            'sin', 'cos', 'tan', 'log', 'ln',
+            'bigg', 'Big', 'left', 'right',
+            'infty', 'cdot', 'times', 'div'
+        ]
+
+        // Add backslash before commands that are missing it (within $$...$$ blocks)
+        latexCommands.forEach(cmd => {
+            // Match the command only if it's NOT already preceded by a backslash
+            const regex = new RegExp(`(?<!\\\\)\\b${cmd}\\b`, 'g')
+            cleaned = cleaned.replace(regex, `\\${cmd}`)
+        })
+
         // Remove unnecessary \textstyle commands
         cleaned = cleaned.replace(/\\textstyle\s*/g, '')
-
-        // DISABLED: backslash replacement - was removing valid LaTeX commands
-        // cleaned = cleaned.replace(/\\\\/g, '\\')
 
         if (text !== cleaned) {
             console.log('🔧 Sanitized:', { before: text, after: cleaned })
@@ -220,11 +235,14 @@ Ejemplos CORRECTOS:
   "explanation": "Excelente trabajo. La integral $$\\int_0^{\\pi} x^2 dx = \\frac{\\pi^3}{3}$$ está perfectamente resuelta."
 }
 
-REGLAS:
+REGLAS CRÍTICAS:
 - "text": Título conciso, sin fórmulas (máximo 5 palabras)
 - "explanation": Detalle completo con LaTeX usando $$...$$
-- LaTeX: UN backslash en JSON (\\int no \\\\int)
-- PROHIBIDO: \\textstyle, \\displaystyle, \\text{}
+- OBLIGATORIO: TODOS los comandos LaTeX requieren backslash: \\frac, \\int, \\theta, \\pi, \\bigg
+- Si escribes "frac" sin \\ el sistema NO puede renderizarlo
+- Ejemplo JSON literal que DEBES seguir:
+  "explanation": "La integral $$\\int_0^{\\theta} x^2 dx = \\frac{\\theta^3}{3}$$ es correcta."
+- PROHIBIDO: comandos sin backslash (frac, theta, int), \\textstyle, \\displaystyle
 - Proporciona un bounding box preciso para cada anotación (x, y, width, height en rango 0-1).
 - Evita mencionar prolijidad, caligrafía u otros aspectos estéticos.
 - Nunca generes anotaciones superpuestas si puedes agruparlas.
