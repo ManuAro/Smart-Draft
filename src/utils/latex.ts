@@ -17,6 +17,13 @@ const wrapMatchIfNeeded = (text: string, match: string, index: number) => {
 
 export const formatMathText = (input?: string | null) => {
     if (!input) return ''
+
+    // If the text already has LaTeX delimiters ($ or $$), return it as-is
+    // This prevents double-wrapping and breaking properly formatted LaTeX
+    if (input.includes('$')) {
+        return input
+    }
+
     let text = input
 
     const applyPattern = (pattern: RegExp) => {
