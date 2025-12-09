@@ -13,6 +13,7 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
     const lastActivityRef = useRef<number>(Date.now())
     const labelSlotsRef = useRef<Record<string, number>>({})
+    const suggestionSlotsRef = useRef(0)
 
     const clearPreviousAnnotations = useCallback(() => {
         if (!editor) return
@@ -101,6 +102,41 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
                     return 'blue'
             }
         })()
+
+        if (type === 'suggestion') {
+            const suggestionIndex = suggestionSlotsRef.current++
+            const pageBounds = editor.getCurrentPageBounds()
+            const boundsMaxX = pageBounds?.maxX
+            const noteBaseX = Number.isFinite(boundsMaxX)
+                ? (boundsMaxX as number) + 80
+                : (Number.isFinite(baseX + baseWidth) ? baseX + baseWidth + 120 : 200)
+            const baseNoteY = Number.isFinite(baseY) ? baseY : (pageBounds?.minY ?? 0)
+            const noteSpacing = 120
+            const noteY = baseNoteY + suggestionIndex * noteSpacing
+            const noteWidth = 320
+
+            editor.createShape({
+                id: textId,
+                type: 'text',
+                x: noteBaseX,
+                y: noteY,
+                props: {
+                    richText: toRichText(`💡 ${text}\n${formattedExplanation}`),
+                    color: 'black',
+                    size: 's',
+                    font: 'sans',
+                    w: noteWidth,
+                    autoSize: false
+                },
+                meta: {
+                    explanation: formattedExplanation,
+                    annotationId: id ?? textId,
+                    [ANNOTATION_META_FLAG]: true
+                }
+            })
+
+            return
+        }
 
         // 3. Create Circle (Ellipse) around the error
         // Add padding (e.g., 20% of the max dimension) to make it "generous"
@@ -266,6 +302,7 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
                 try {
                     const annotations = await analyzeCanvas(base64data, mode, exerciseStatement)
                     labelSlotsRef.current = {}
+                    suggestionSlotsRef.current = 0
                     clearPreviousAnnotations()
 
                     annotations.forEach(ann => {
