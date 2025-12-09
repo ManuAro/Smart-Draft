@@ -158,14 +158,16 @@ Reglas:
   * type "suggestion": mejora opcional que no invalida el resultado.
   * type "reference": sólo referencia un error pasado ya corregido (usa texto "ArrastraError").
   * type "success": todo correcto.
-- FORMATO DE MATEMÁTICAS OBLIGATORIO:
-  * SIEMPRE encierra expresiones matemáticas entre delimitadores LaTeX: $...$ para inline o $$...$$ para display.
-  * Usa UN SOLO backslash antes de comandos LaTeX en el JSON: \\int, \\frac, \\pi
-  * NO uses \\textstyle, \\displaystyle, \\text{}, \\mathrm{} - escribe LaTeX simple
-  * El ÚNICO formato JSON permitido (copia exactamente este formato):
-    "explanation": "La integral $$\\int_0^{\\pi} x^2 dx$$ resulta en $$\\frac{\\pi^3}{3}$$"
-  * CORRECTO: "$$\\int_0^{\\pi} x^2 dx$$", "$\\frac{\\pi^3}{3}$"
-  * PROHIBIDO: "$$\\\\int$$", "$$\\textstyle \\\\int$$", "\\frac{a}{b}" (sin $)
+- FORMATO DE MATEMÁTICAS OBLIGATORIO - Copia este formato literal en tu JSON response:
+{
+  "explanation": "La integral $$\\int_0^{\\pi} x^2 dx$$ resulta en $$\\frac{\\pi^3}{3}$$"
+}
+
+IMPORTANTE: En el string JSON, los comandos LaTeX deben tener UN backslash: \\int (no \\\\int)
+Cuando generes el JSON, escribe exactamente: "$$\\int" NO "$$\\\\int"
+El parser de JSON convertirá \\int automáticamente.
+
+PROHIBIDO: \\textstyle, \\displaystyle, \\text{}, comandos LaTeX sin delimitadores $
 - Proporciona un bounding box preciso para cada anotación (x, y, width, height en rango 0-1).
 - Evita mencionar prolijidad, caligrafía u otros aspectos estéticos.
 - Nunca generes anotaciones superpuestas si puedes agruparlas.
