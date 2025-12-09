@@ -117,13 +117,15 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
             const noteY = baseNoteY + suggestionIndex * noteSpacing
             const noteWidth = 320
 
+            const suggestionLabel = `💡 ${text}\n(Toca para ver el desarrollo)`
+
             editor.createShape({
                 id: textId,
                 type: 'text',
                 x: noteBaseX,
                 y: noteY,
                 props: {
-                    richText: toRichText(`💡 ${text}\n${formattedExplanation}`),
+                    richText: toRichText(suggestionLabel),
                     color: 'black',
                     size: 's',
                     font: 'sans',
