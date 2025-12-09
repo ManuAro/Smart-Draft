@@ -79,9 +79,15 @@ const filterAnnotations = (annotations: any[]) => {
         if (!ann.text || !ann.explanation) return false
         if (ann.type === 'success') return true
 
-        const combined = `${ann.text} ${ann.explanation}`.toLowerCase()
-        const isIrrelevant = IRRELEVANT_KEYWORDS.some(keyword => combined.includes(keyword))
-        return !isIrrelevant
+        if (ann.type !== 'warning') {
+            const combined = `${ann.text} ${ann.explanation}`.toLowerCase()
+            const isIrrelevant = IRRELEVANT_KEYWORDS.some(keyword => combined.includes(keyword))
+            if (isIrrelevant) {
+                return false
+            }
+        }
+
+        return true
     }).map(sanitizeAnnotation)
 }
 

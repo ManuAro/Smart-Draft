@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
+import { formatMathText } from '../utils/latex'
 
 interface Message {
     id: string
@@ -53,7 +54,8 @@ export const ChatInterface = ({ onClose, onSendMessage, initialMessage }: ChatIn
 
         try {
             const response = await onSendMessage(userMsg.text)
-            const aiMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', text: response }
+            const formattedResponse = formatMathText(response)
+            const aiMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', text: formattedResponse }
             setMessages(prev => [...prev, aiMsg])
         } catch (error) {
             console.error(error)

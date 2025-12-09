@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useEditor, createShapeId, toRichText, Box } from 'tldraw'
 import { analyzeCanvas, type AIAnnotation } from '../services/openai'
+import { formatMathText } from '../utils/latex'
 
 const MIN_BOX_RATIO = 0.02
 const MIN_BOX_PIXEL = 40
@@ -26,6 +27,7 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
         if (!editor) return
 
         const { text, explanation, type, x: xPct, y: yPct, id } = annotation
+        const formattedExplanation = formatMathText(explanation)
         const wPct = Math.max(annotation.width ?? MIN_BOX_RATIO, MIN_BOX_RATIO)
         const hPct = Math.max(annotation.height ?? MIN_BOX_RATIO, MIN_BOX_RATIO)
 
@@ -36,12 +38,18 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
 
         // Special case: success badge
         if (type === 'success') {
+            const widthForSuccess = Math.max(baseWidth, 200)
+            let successX = baseX + widthForSuccess / 2 - 60
+            let successY = baseY - 60
+            if (!Number.isFinite(successX)) successX = 0
+            if (!Number.isFinite(successY) || successY < 0) successY = baseY + 40
+
             const successId = createShapeId()
             editor.createShape({
                 id: successId,
                 type: 'text',
-                x: baseX + 20,
-                y: baseY - 80,
+                x: successX,
+                y: successY,
                 props: {
                     richText: toRichText(`✔ ${text}`),
                     color: 'green',
@@ -49,7 +57,7 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
                     font: 'sans'
                 },
                 meta: {
-                    explanation,
+                    explanation: formattedExplanation,
                     annotationId: id ?? successId,
                     [ANNOTATION_META_FLAG]: true
                 }
@@ -118,7 +126,7 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
                     size: 'm',
                 },
                 meta: {
-                    explanation,
+                    explanation: formattedExplanation,
                     annotationId: id ?? circleId,
                     [ANNOTATION_META_FLAG]: true
                 }
@@ -145,7 +153,7 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
                 font: 'sans',
             },
             meta: {
-                explanation, // Store explanation so clicking triggers the bubble
+                explanation: formattedExplanation, // Store explanation so clicking triggers the bubble
                 annotationId: id ?? textId,
                 [ANNOTATION_META_FLAG]: true
             }
@@ -167,7 +175,7 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
                     arrowheadEnd: 'arrow',
                 },
                 meta: {
-                    explanation,
+                    explanation: formattedExplanation,
                     annotationId: id ?? arrowId,
                     [ANNOTATION_META_FLAG]: true
                 }
