@@ -59,7 +59,8 @@ export interface SolutionStep {
 
 export const generateSolution = async (
     exerciseStatement: string,
-    imageDataUrl: string | null
+    imageDataUrl: string | null,
+    detailImageDataUrl: string | null
 ): Promise<SolutionStep[]> => {
     try {
         const response = await fetch('/api/generate-solution', {
@@ -69,7 +70,8 @@ export const generateSolution = async (
             },
             body: JSON.stringify({
                 exerciseStatement,
-                imageDataUrl
+                imageDataUrl,
+                detailImageDataUrl
             })
         })
 

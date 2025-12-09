@@ -85,9 +85,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({ error: 'API key not configured' })
     }
 
-    const { exerciseStatement, imageDataUrl } = req.body
+    const { exerciseStatement, imageDataUrl, detailImageDataUrl } = req.body
 
-    const derivedContext = needsCanvasContext(exerciseStatement) ? await describeCanvas(imageDataUrl) : null
+    const referenceImage = detailImageDataUrl || imageDataUrl
+    const derivedContext = needsCanvasContext(exerciseStatement) ? await describeCanvas(referenceImage) : null
     const combinedStatement = [
         exerciseStatement && exerciseStatement.trim().length > 0
             ? `Enunciado del estudiante: "${exerciseStatement.trim()}"`
@@ -105,6 +106,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             type: "image_url",
             image_url: {
                 url: imageDataUrl,
+                detail: "low"
+            }
+        })
+    }
+
+    if (detailImageDataUrl) {
+        userContent.push({
+            type: "image_url",
+            image_url: {
+                url: detailImageDataUrl,
                 detail: "high"
             }
         })
@@ -143,6 +154,8 @@ Instrucciones:
      }
    - INCORRECTO: "$$\\\\int x dx$$" (doble backslash)
 6. Usa LaTeX estándar (\\frac{}, \\sqrt{}, \\int, etc.) para TODA matemática.
+7. Identifica literalmente los datos numéricos presentes en las imágenes (la segunda imagen es la de mayor detalle). Copia la matriz o los valores antes de operar y evita ejemplos genéricos.
+8. El último paso DEBE contener el resultado final evaluado (ej. "Determinante = 0") tanto en el texto como en el campo latex.
 `
                     },
                     {

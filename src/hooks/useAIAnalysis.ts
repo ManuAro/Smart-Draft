@@ -343,7 +343,7 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
     }, [editor, runAnalysis, options.manualTriggerOnly])
 
     // Helper to capture canvas
-    const captureCanvas = useCallback(async (): Promise<string | null> => {
+    const captureCanvas = useCallback(async (options: { scale?: number, padding?: number } = {}): Promise<string | null> => {
         if (!editor) return null
 
         try {
@@ -364,7 +364,7 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
                 }
             })
 
-            const padding = 20 // Add some context
+            const padding = options.padding ?? 20 // Add some context
             const commonBounds = new Box(
                 minX - padding,
                 minY - padding,
@@ -375,7 +375,7 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
             // @ts-ignore
             const result = await (editor as any).toImage([...shapeIds], {
                 format: 'png',
-                scale: 1,
+                scale: options.scale ?? 1,
                 background: true,
                 bounds: commonBounds
             })
