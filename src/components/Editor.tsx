@@ -7,7 +7,7 @@ import { AnnotationBubble } from './AnnotationBubble'
 import { Calculator } from './Calculator'
 import { AIToolsPanel } from './AIToolsPanel'
 import { generateSolution } from '../services/openai'
-import { inlineMathToPlainText, removeMathFromText, restoreLatexEscapes } from '../utils/latex'
+import { inlineMathToPlainText, removeMathFromText, normalizeLatexForImage } from '../utils/solutionText'
 
 const TLDRAW_LICENSE_KEY = import.meta.env.VITE_TLDRAW_LICENSE_KEY ?? ''
 
@@ -41,7 +41,7 @@ const EditorContent = forwardRef(({ exerciseStatement, onOpenChat }: { exerciseS
 
         // Use Codecogs to generate image
         // \dpi{300} for high res, \bg{white} for background
-        const safeLatex = restoreLatexEscapes(latex)
+        const safeLatex = normalizeLatexForImage(latex)
         const url = `https://latex.codecogs.com/png.image?\\dpi{300}\\bg{white}${encodeURIComponent(safeLatex)}`
 
         try {
