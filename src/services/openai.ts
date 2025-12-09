@@ -35,6 +35,12 @@ export const analyzeCanvas = async (
         }
 
         const data = await response.json()
+
+        // Debug: Log raw annotations to inspect formatting issues
+        if (data.annotations && data.annotations.length > 0) {
+            console.log('🔍 Raw AI annotations:', data.annotations)
+        }
+
         return data.annotations || []
 
     } catch (error) {
