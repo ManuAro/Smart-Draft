@@ -4,6 +4,27 @@ const apiKey = process.env.OPENAI_API_KEY
 const PRIMARY_MODEL = 'gpt-4o-mini'
 const MIN_STATEMENT_CHARS = 40
 
+const restoreLatexEscapes = (text?: string | null) => {
+    if (!text) return text ?? ''
+
+    const escapeMap: Record<string, string> = {
+        '\b': 'b',
+        '\f': 'f',
+        '\r': 'r',
+        '\t': 't'
+    }
+
+    let restored = ''
+    for (const char of text) {
+        if (char in escapeMap) {
+            restored += '\\' + escapeMap[char as keyof typeof escapeMap]
+        } else {
+            restored += char
+        }
+    }
+    return restored
+}
+
 const needsCanvasContext = (statement?: string) => {
     if (!statement) return true
     const trimmed = statement.trim()
@@ -167,14 +188,13 @@ Instrucciones:
 
         const result = JSON.parse(content)
 
-        // DISABLED: backslash replacement - was removing valid LaTeX commands
-        // if (result.steps && Array.isArray(result.steps)) {
-        //     result.steps = result.steps.map((step: any) => ({
-        //         ...step,
-        //         explanation: step.explanation?.replace(/\\\\/g, '\\'),
-        //         latex: step.latex?.replace(/\\\\/g, '\\')
-        //     }))
-        // }
+        if (Array.isArray(result?.steps)) {
+            result.steps = result.steps.map((step: any) => ({
+                ...step,
+                explanation: restoreLatexEscapes(step.explanation),
+                latex: restoreLatexEscapes(step.latex)
+            }))
+        }
 
         return res.status(200).json(result)
 
