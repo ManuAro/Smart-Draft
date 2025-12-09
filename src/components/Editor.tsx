@@ -112,8 +112,8 @@ const EditorContent = forwardRef(({ exerciseStatement, onOpenChat }: { exerciseS
         setIsGeneratingSolution(true)
 
         try {
-            // Generate solution based on exercise statement only, not canvas
-            const steps = await generateSolution(exerciseStatement, null)
+            const canvasImage = await captureCanvas()
+            const steps = await generateSolution(exerciseStatement, canvasImage ?? null)
 
             if (steps.length > 0) {
                 // Find a clear spot to start writing (e.g., to the right of existing content)

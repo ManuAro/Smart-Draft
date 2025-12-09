@@ -2,6 +2,58 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 const apiKey = process.env.OPENAI_API_KEY
 const PRIMARY_MODEL = 'gpt-4o-mini'
+const MIN_STATEMENT_CHARS = 40
+
+const needsCanvasContext = (statement?: string) => {
+    if (!statement) return true
+    const trimmed = statement.trim()
+    if (!trimmed) return true
+    if (trimmed.length < MIN_STATEMENT_CHARS) return true
+    const hasNumbers = /\d/.test(trimmed)
+    return !hasNumbers
+}
+
+async function describeCanvas(imageDataUrl?: string): Promise<string | null> {
+    if (!imageDataUrl) return null
+
+    try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: PRIMARY_MODEL,
+                messages: [
+                    {
+                        role: "system",
+                        content: `Describe en español qué ejercicio de matemática se observa en la imagen y cuál parece ser el objetivo. Usa LaTeX para ecuaciones.`
+                    },
+                    {
+                        role: "user",
+                        content: [
+                            { type: "text", text: "Describe brevemente el contenido y los datos relevantes." },
+                            {
+                                type: "image_url",
+                                image_url: {
+                                    url: imageDataUrl,
+                                    detail: "low"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            })
+        })
+
+        const data = await response.json()
+        return data?.choices?.[0]?.message?.content?.trim() || null
+    } catch (error) {
+        console.error('Failed to derive canvas context for chat', error)
+        return null
+    }
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -14,22 +66,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { messages, imageDataUrl, exerciseStatement } = req.body
 
-    const systemPrompt = `You are a helpful and encouraging math tutor.
-        The student is working on an exercise: "${exerciseStatement}".
+    const derivedContext = needsCanvasContext(exerciseStatement) ? await describeCanvas(imageDataUrl) : null
+    const combinedStatement = [
+        exerciseStatement && exerciseStatement.trim().length > 0
+            ? `Enunciado del estudiante: "${exerciseStatement.trim()}"`
+            : 'El estudiante no proporcionó un enunciado claro.',
+        derivedContext ? `Contexto reconstruido desde la hoja: ${derivedContext}` : null
+    ].filter(Boolean).join('\n\n')
 
-        You have access to the student's current canvas drawing (if provided).
-        Analyze the drawing to understand where they are stuck or what they have done so far.
+    const systemPrompt = `Eres un tutor de matemática amigable y riguroso.
+Contexto del ejercicio:
+${combinedStatement}
 
-        Guidelines:
-        1. Be concise and friendly.
-        2. Do NOT give the final answer immediately. Guide them step-by-step.
-        3. If they made a mistake, gently point it out and ask a guiding question.
-        4. If the canvas is empty, ask them how they plan to start.
-        5. Respond in Spanish.
-        6. IMPORTANT: When writing mathematical expressions, use LaTeX notation:
-           - For inline math, use single dollar signs: $x^2 + 1$
-           - For display math, use double dollar signs: $$\\int x dx = \\frac{x^2}{2} + C$$
-           - Always use LaTeX for formulas, equations, integrals, derivatives, etc.`
+Reglas:
+1. Responde en español con un tono motivador.
+2. No des la respuesta final inmediatamente; guía al estudiante con preguntas y micro-pasos.
+3. Si notas un error, descríbelo y sugiere cómo corregirlo, priorizando el resultado final.
+4. Usa LaTeX para TODA expresión matemática: $x^2 + 1$, $$\\int x dx$$, etc.
+5. Si el ejercicio ya está correcto, confírmalo y ofrece mejoras sólo como sugerencias.`
 
     const apiMessages: any[] = [
         { role: "system", content: systemPrompt },

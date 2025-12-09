@@ -2,6 +2,58 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 const apiKey = process.env.OPENAI_API_KEY
 const PRIMARY_MODEL = 'gpt-4o-mini'
+const MIN_STATEMENT_CHARS = 40
+
+const needsCanvasContext = (statement?: string) => {
+    if (!statement) return true
+    const trimmed = statement.trim()
+    if (!trimmed) return true
+    if (trimmed.length < MIN_STATEMENT_CHARS) return true
+    const hasNumbers = /\d/.test(trimmed)
+    return !hasNumbers
+}
+
+async function describeCanvas(imageDataUrl?: string): Promise<string | null> {
+    if (!imageDataUrl) return null
+
+    try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: PRIMARY_MODEL,
+                messages: [
+                    {
+                        role: "system",
+                        content: `Describe en español qué ejercicio se observa en la imagen, incluyendo datos clave o ecuaciones usando LaTeX. Máximo 2 oraciones.`
+                    },
+                    {
+                        role: "user",
+                        content: [
+                            { type: "text", text: "Describe brevemente el ejercicio y qué se está resolviendo." },
+                            {
+                                type: "image_url",
+                                image_url: {
+                                    url: imageDataUrl,
+                                    detail: "low"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            })
+        })
+
+        const data = await response.json()
+        return data?.choices?.[0]?.message?.content?.trim() || null
+    } catch (error) {
+        console.error('Failed to derive canvas context for solution', error)
+        return null
+    }
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -14,7 +66,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { exerciseStatement, imageDataUrl } = req.body
 
-    const userContent: any[] = [{ type: "text", text: "Solve this problem step-by-step." }]
+    const derivedContext = needsCanvasContext(exerciseStatement) ? await describeCanvas(imageDataUrl) : null
+    const combinedStatement = [
+        exerciseStatement && exerciseStatement.trim().length > 0
+            ? `Enunciado del estudiante: "${exerciseStatement.trim()}"`
+            : 'El estudiante no proporcionó un enunciado claro.',
+        derivedContext ? `Contexto reconstruido desde la hoja: ${derivedContext}` : null
+    ].filter(Boolean).join('\n\n')
+
+    const userContent: any[] = [{
+        type: "text",
+        text: `Resuelve este ejercicio paso a paso asegurando coherencia con lo que se ve en la hoja y concluye con el mismo resultado final (si es correcto).`
+    }]
 
     if (imageDataUrl) {
         userContent.push({
@@ -38,27 +101,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 messages: [
                     {
                         role: "system",
-                        content: `You are an expert math tutor.
-          The current exercise statement is: "${exerciseStatement}".
+                        content: `Eres un profesor de matemática que presenta soluciones limpias y consistentes con la hoja del estudiante.
+Ejercicio a resolver:
+${combinedStatement}
 
-          You have access to the student's current work (if provided). Use it to understand their approach, but provide a complete correct solution.
-
-          Solve the problem step-by-step.
-
-          IMPORTANT GUIDELINES:
-          1. ALL OUTPUT MUST BE IN SPANISH.
-          2. For each step, provide:
-             - "explanation": A clear explanation in Spanish of what is being done
-             - "latex": The mathematical expression in LaTeX format (WITHOUT dollar signs, just the raw LaTeX)
-          3. ALWAYS use proper LaTeX notation for all mathematical expressions:
-             - Fractions: \\frac{a}{b}
-             - Integrals: \\int x dx
-             - Derivatives: \\frac{dx}{dt}
-             - Exponents: x^2
-             - Square roots: \\sqrt{x}
-             - Greek letters: \\alpha, \\beta, etc.
-          4. The latex field will be rendered using KaTeX, so use standard LaTeX syntax.
-          `
+Instrucciones:
+1. Devuelve TODO en español.
+2. Reconstruye cualquier parte faltante del enunciado usando el contexto de la hoja antes de resolver.
+3. Mantén el mismo resultado final que debería obtenerse; si el alumno ya lo tiene correcto, respétalo.
+4. Cada paso debe incluir:
+   - explanation: descripción clara en español.
+   - latex: expresión LaTeX sin signos $ (KaTeX lo envolverá).
+5. Usa LaTeX estándar (\\frac{}, \\sqrt{}, potencias, integrales, etc.) para TODA matemática.
+`
                     },
                     {
                         role: "user",

@@ -2,7 +2,8 @@
 // This keeps the API key secure on the server side
 
 export interface AIAnnotation {
-    type: 'warning' | 'info' | 'success'
+    id?: string
+    type: 'warning' | 'info' | 'success' | 'suggestion' | 'reference'
     text: string
     explanation: string // Detailed explanation
     x: number // 0-1 relative to image width (top-left of box)

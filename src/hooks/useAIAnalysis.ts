@@ -4,6 +4,7 @@ import { analyzeCanvas, type AIAnnotation } from '../services/openai'
 
 const MIN_BOX_RATIO = 0.02
 const MIN_BOX_PIXEL = 40
+const ANNOTATION_META_FLAG = 'smartDraftAnnotation'
 
 export const useAIAnalysis = (exerciseStatement: string, options: { manualTriggerOnly?: boolean } = {}) => {
     const editor = useEditor()
@@ -12,11 +13,19 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
     const lastActivityRef = useRef<number>(Date.now())
     const labelSlotsRef = useRef<Record<string, number>>({})
 
+    const clearPreviousAnnotations = useCallback(() => {
+        if (!editor) return
+        const annotationShapes = editor.getCurrentPageShapes().filter(shape => shape.meta?.[ANNOTATION_META_FLAG])
+        if (annotationShapes.length > 0) {
+            editor.deleteShapes(annotationShapes.map(shape => shape.id))
+        }
+    }, [editor])
+
     // Helper to inject annotation (Marker Style)
     const injectAnnotation = useCallback((annotation: AIAnnotation, commonBounds: Box) => {
         if (!editor) return
 
-        const { text, explanation, type, x: xPct, y: yPct } = annotation
+        const { text, explanation, type, x: xPct, y: yPct, id } = annotation
         const wPct = Math.max(annotation.width ?? MIN_BOX_RATIO, MIN_BOX_RATIO)
         const hPct = Math.max(annotation.height ?? MIN_BOX_RATIO, MIN_BOX_RATIO)
 
@@ -40,7 +49,9 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
                     font: 'sans'
                 },
                 meta: {
-                    explanation
+                    explanation,
+                    annotationId: id ?? successId,
+                    [ANNOTATION_META_FLAG]: true
                 }
             })
             return
@@ -70,7 +81,18 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
         const circleId = createShapeId()
         const arrowId = createShapeId()
         const textId = createShapeId()
-        const color = type === 'warning' ? 'red' : 'blue'
+        const color = (() => {
+            switch (type) {
+                case 'warning':
+                    return 'red'
+                case 'suggestion':
+                    return 'yellow'
+                case 'reference':
+                    return 'grey'
+                default:
+                    return 'blue'
+            }
+        })()
 
         // 3. Create Circle (Ellipse) around the error
         // Add padding (e.g., 20% of the max dimension) to make it "generous"
@@ -80,21 +102,28 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
         const finalX = boxX - padding
         const finalY = boxY - padding
 
-        editor.createShape({
-            id: circleId,
-            type: 'geo',
-            x: finalX,
-            y: finalY,
-            props: {
-                geo: 'ellipse',
-                w: finalW,
-                h: finalH,
-                color,
-                fill: 'none',
-                dash: 'draw', // Hand-drawn style
-                size: 'm',
-            }
-        })
+        if (type !== 'reference') {
+            editor.createShape({
+                id: circleId,
+                type: 'geo',
+                x: finalX,
+                y: finalY,
+                props: {
+                    geo: 'ellipse',
+                    w: finalW,
+                    h: finalH,
+                    color,
+                    fill: 'none',
+                    dash: 'draw', // Hand-drawn style
+                    size: 'm',
+                },
+                meta: {
+                    explanation,
+                    annotationId: id ?? circleId,
+                    [ANNOTATION_META_FLAG]: true
+                }
+            })
+        }
 
         // 4. Create Label (Title)
         // Position it to the right of the box
@@ -116,25 +145,34 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
                 font: 'sans',
             },
             meta: {
-                explanation // Store explanation here so clicking the text triggers the bubble
+                explanation, // Store explanation so clicking triggers the bubble
+                annotationId: id ?? textId,
+                [ANNOTATION_META_FLAG]: true
             }
         })
 
         // 5. Create Arrow connecting Circle to Label
-        editor.createShape({
-            id: arrowId,
-            type: 'arrow',
-            x: finalX + finalW, // Start at the right edge of the ellipse
-            y: centerY, // Vertically centered
-            props: {
-                start: { x: 0, y: 0 },
-                end: { x: labelX - (finalX + finalW), y: labelY - centerY + 15 }, // Point to the label
-                color,
-                size: 's',
-                arrowheadStart: 'none',
-                arrowheadEnd: 'arrow',
-            }
-        })
+        if (type !== 'reference') {
+            editor.createShape({
+                id: arrowId,
+                type: 'arrow',
+                x: finalX + finalW, // Start at the right edge of the ellipse
+                y: centerY, // Vertically centered
+                props: {
+                    start: { x: 0, y: 0 },
+                    end: { x: labelX - (finalX + finalW), y: labelY - centerY + 15 }, // Point to the label
+                    color,
+                    size: 's',
+                    arrowheadStart: 'none',
+                    arrowheadEnd: 'arrow',
+                },
+                meta: {
+                    explanation,
+                    annotationId: id ?? arrowId,
+                    [ANNOTATION_META_FLAG]: true
+                }
+            })
+        }
 
     }, [editor])
 
@@ -220,6 +258,7 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
                 try {
                     const annotations = await analyzeCanvas(base64data, mode, exerciseStatement)
                     labelSlotsRef.current = {}
+                    clearPreviousAnnotations()
 
                     annotations.forEach(ann => {
                         injectAnnotation(ann, commonBounds)
@@ -240,7 +279,7 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
         } catch (error: any) {
             setIsAnalyzing(false)
         }
-    }, [editor, injectAnnotation, exerciseStatement, options.manualTriggerOnly])
+    }, [editor, injectAnnotation, exerciseStatement, options.manualTriggerOnly, clearPreviousAnnotations])
 
     // Analysis Loop
     useEffect(() => {
