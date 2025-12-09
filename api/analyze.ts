@@ -63,14 +63,18 @@ const sanitizeAnnotation = (annotation: any) => {
     const safeWidth = clamp01(annotation.width ?? MIN_BOX_RATIO)
     const safeHeight = clamp01(annotation.height ?? MIN_BOX_RATIO)
 
-    // Fix double-escaped backslashes in LaTeX (\\int -> \int in actual string)
+    // Fix LaTeX formatting issues
     const cleanText = (text: string) => {
         if (!text) return text
+        console.log('🔍 cleanText input:', text)
+
         let cleaned = text
-        // Replace double backslashes with single backslashes for LaTeX commands
-        cleaned = cleaned.replace(/\\\\/g, '\\')
         // Remove unnecessary \textstyle commands
         cleaned = cleaned.replace(/\\textstyle\s*/g, '')
+
+        // DISABLED: backslash replacement - was removing valid LaTeX commands
+        // cleaned = cleaned.replace(/\\\\/g, '\\')
+
         if (text !== cleaned) {
             console.log('🔧 Sanitized:', { before: text, after: cleaned })
         }

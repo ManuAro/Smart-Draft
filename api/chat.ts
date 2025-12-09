@@ -128,8 +128,8 @@ Reglas:
         const data = await response.json()
         let content = data.choices[0].message.content || "Lo siento, no pude generar una respuesta."
 
-        // Fix double-escaped backslashes in LaTeX (\\int -> \int)
-        content = content.replace(/\\\\/g, '\\')
+        // DISABLED: backslash replacement - was removing valid LaTeX commands
+        // content = content.replace(/\\\\/g, '\\')
 
         return res.status(200).json({ content })
 

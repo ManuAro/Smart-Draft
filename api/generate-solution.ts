@@ -167,14 +167,14 @@ Instrucciones:
 
         const result = JSON.parse(content)
 
-        // Fix double-escaped backslashes in LaTeX for all steps (\\int -> \int)
-        if (result.steps && Array.isArray(result.steps)) {
-            result.steps = result.steps.map((step: any) => ({
-                ...step,
-                explanation: step.explanation?.replace(/\\\\/g, '\\'),
-                latex: step.latex?.replace(/\\\\/g, '\\')
-            }))
-        }
+        // DISABLED: backslash replacement - was removing valid LaTeX commands
+        // if (result.steps && Array.isArray(result.steps)) {
+        //     result.steps = result.steps.map((step: any) => ({
+        //         ...step,
+        //         explanation: step.explanation?.replace(/\\\\/g, '\\'),
+        //         latex: step.latex?.replace(/\\\\/g, '\\')
+        //     }))
+        // }
 
         return res.status(200).json(result)
 
