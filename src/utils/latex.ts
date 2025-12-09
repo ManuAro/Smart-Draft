@@ -124,3 +124,25 @@ export const inlineMathToPlainText = (input?: string | null) => {
 
     return text.replace(/\s+/g, ' ').trim()
 }
+
+const removeMathSegmentsWithFlag = (input: string) => {
+    let hadMath = false
+    const stripPattern = (text: string, pattern: RegExp) => {
+        return text.replace(pattern, () => {
+            hadMath = true
+            return ' '
+        })
+    }
+
+    let stripped = restoreLatexEscapes(input)
+    stripped = stripPattern(stripped, /(\${1,2})([\s\S]*?)(\1)/g)
+    stripped = stripPattern(stripped, /(\\\()([\s\S]*?)(\\\))/g)
+    stripped = stripPattern(stripped, /(\\\[)([\s\S]*?)(\\\])/g)
+
+    return { text: stripped.replace(/\s+/g, ' ').trim(), hadMath }
+}
+
+export const removeMathFromText = (input?: string | null) => {
+    if (!input) return { text: '', hadMath: false }
+    return removeMathSegmentsWithFlag(input)
+}

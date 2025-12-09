@@ -7,7 +7,7 @@ import { AnnotationBubble } from './AnnotationBubble'
 import { Calculator } from './Calculator'
 import { AIToolsPanel } from './AIToolsPanel'
 import { generateSolution } from '../services/openai'
-import { inlineMathToPlainText } from '../utils/latex'
+import { inlineMathToPlainText, removeMathFromText } from '../utils/latex'
 
 const TLDRAW_LICENSE_KEY = import.meta.env.VITE_TLDRAW_LICENSE_KEY ?? ''
 
@@ -154,7 +154,10 @@ const EditorContent = forwardRef(({ exerciseStatement, onOpenChat }: { exerciseS
                 for (const [index, step] of steps.entries()) {
                     // Explanation
                     const stepId = createShapeId()
-                    const explanationText = inlineMathToPlainText(step.explanation)
+                    const { text: plainExplanation, hadMath } = removeMathFromText(step.explanation)
+                    const explanationText = hadMath
+                        ? `${plainExplanation ? `${plainExplanation} ` : ''}(ver expresión matemática debajo)`
+                        : (plainExplanation || inlineMathToPlainText(step.explanation))
 
                     editor.createShape({
                         id: stepId,
