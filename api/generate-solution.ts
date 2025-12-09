@@ -154,7 +154,10 @@ Instrucciones:
      }
    - INCORRECTO: "$$\\\\int x dx$$" (doble backslash)
 6. Usa LaTeX estándar (\\frac{}, \\sqrt{}, \\int, etc.) para TODA matemática.
-7. Identifica literalmente los datos numéricos presentes en las imágenes (la segunda imagen es la de mayor detalle). Copia la matriz o los valores antes de operar y evita ejemplos genéricos.
+7. ENFOQUE EN DATOS DE LA HOJA:
+   - Paso 1 debe transcribir literalmente los datos del ejercicio (matriz, sistema, valores numéricos) tal como se ven en las imágenes. Si se trata de una matriz, escribe sus entradas explícitamente.
+   - Usa la segunda imagen (detalle) como referencia principal para los números; si hay inconsistencias, prioriza lo que veas ahí y menciónalo.
+   - Evita casos genéricos: trabaja con los valores concretos copiados de la hoja. Si no puedes leer un dato, dilo explícitamente y no inventes.
 8. El último paso DEBE contener el resultado final evaluado (ej. "Determinante = 0") tanto en el texto como en el campo latex.
 `
                     },

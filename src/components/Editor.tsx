@@ -115,8 +115,8 @@ const EditorContent = forwardRef(({ exerciseStatement, onOpenChat }: { exerciseS
 
         try {
             const [canvasImage, detailImage] = await Promise.all([
-                captureCanvas(),
-                captureCanvas({ scale: 2 })
+                captureCanvas({ scale: 1, padding: 20 }),
+                captureCanvas({ scale: 3, padding: 5 })
             ])
 
             const steps = await generateSolution(
