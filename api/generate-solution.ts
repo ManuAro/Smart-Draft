@@ -110,9 +110,12 @@ Instrucciones:
 2. Reconstruye cualquier parte faltante del enunciado usando el contexto de la hoja antes de resolver.
 3. Mantén el mismo resultado final que debería obtenerse; si el alumno ya lo tiene correcto, respétalo.
 4. Cada paso debe incluir:
-   - explanation: descripción clara en español.
-   - latex: expresión LaTeX sin signos $ (KaTeX lo envolverá).
-5. Usa LaTeX estándar (\\frac{}, \\sqrt{}, potencias, integrales, etc.) para TODA matemática.
+   - explanation: descripción clara en español (si incluye matemáticas, usa delimitadores LaTeX: $...$).
+   - latex: expresión LaTeX PURO sin delimitadores $ (KaTeX lo envolverá automáticamente).
+5. FORMATO DE MATEMÁTICAS EN EXPLANATION:
+   - Si mencionas fórmulas en la explicación, usa delimitadores: "Se aplica $\\frac{d}{dx}x^n = nx^{n-1}$"
+   - NUNCA escribas comandos LaTeX sin delimitadores en la explicación.
+6. Usa LaTeX estándar (\\frac{}, \\sqrt{}, potencias, integrales, etc.) para TODA matemática.
 `
                     },
                     {

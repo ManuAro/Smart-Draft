@@ -142,7 +142,11 @@ Reglas:
   * type "suggestion": mejora opcional que no invalida el resultado.
   * type "reference": sólo referencia un error pasado ya corregido (usa texto "ArrastraError").
   * type "success": todo correcto.
-- Todos los textos deben ir en español y cualquier expresión matemática en LaTeX (usa $...$ o $$...$$ según corresponda).
+- FORMATO DE MATEMÁTICAS OBLIGATORIO:
+  * SIEMPRE encierra expresiones matemáticas entre delimitadores LaTeX: $...$ para inline o $$...$$ para display.
+  * NUNCA escribas comandos LaTeX sin delimitadores (por ejemplo, NUNCA escribas "\\frac{a}{b}" solo, siempre debe ser "$\\frac{a}{b}$").
+  * Ejemplos CORRECTOS: "El resultado es $\\frac{au^4}{3}$", "Debería ser $$x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}$$"
+  * Ejemplos INCORRECTOS: "El resultado es \\frac{au^4}{3}", "Debería ser x = \\frac{-b}{2a}"
 - Proporciona un bounding box preciso para cada anotación (x, y, width, height en rango 0-1).
 - Evita mencionar prolijidad, caligrafía u otros aspectos estéticos.
 - Nunca generes anotaciones superpuestas si puedes agruparlas.
