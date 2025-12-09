@@ -184,7 +184,7 @@ Reglas:
                                             width: { type: "number" },
                                             height: { type: "number" }
                                         },
-                                        required: ["type", "text", "explanation", "x", "y", "width", "height"],
+                                        required: ["id", "type", "text", "explanation", "x", "y", "width", "height"],
                                         additionalProperties: false
                                     }
                                 }
