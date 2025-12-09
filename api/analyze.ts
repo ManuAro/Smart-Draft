@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto'
 
 const apiKey = process.env.OPENAI_API_KEY
 
-const PRIMARY_MODEL = 'gpt-4o' // Using full gpt-4o for better mathematical accuracy
+const PRIMARY_MODEL = 'gpt-5.1-chat-latest' // GPT-5.1 Instant with adaptive reasoning for better mathematical accuracy
 const MIN_STATEMENT_CHARS = 40
 const IRRELEVANT_KEYWORDS = ['prolijidad', 'presentación', 'orden', 'limpieza', 'estética', 'legible', 'caligrafía', 'formato', 'dibujo', 'alineación', 'márgenes']
 const MIN_BOX_RATIO = 0.02
@@ -167,6 +167,7 @@ NO menciones estética, prolijidad o presentación.`
             },
             body: JSON.stringify({
                 model: PRIMARY_MODEL,
+                reasoning_effort: 'medium', // Enable adaptive reasoning for mathematical analysis
                 messages: [
                     {
                         role: "system",
