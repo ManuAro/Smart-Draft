@@ -28,7 +28,9 @@ export const useAIAnalysis = (exerciseStatement: string, options: { manualTrigge
         if (!editor) return
 
         const { text, explanation, type, x: xPct, y: yPct, id } = annotation
+        console.log('📝 Explanation before formatting:', explanation)
         const formattedExplanation = formatMathText(explanation)
+        console.log('📝 Explanation after formatting:', formattedExplanation)
         const wPct = Math.max(annotation.width ?? MIN_BOX_RATIO, MIN_BOX_RATIO)
         const hPct = Math.max(annotation.height ?? MIN_BOX_RATIO, MIN_BOX_RATIO)
 

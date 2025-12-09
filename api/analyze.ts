@@ -66,14 +66,15 @@ const sanitizeAnnotation = (annotation: any) => {
     // Fix double-escaped backslashes in LaTeX (\\int -> \int in actual string)
     const cleanText = (text: string) => {
         if (!text) return text
-        const before = text
+        let cleaned = text
         // Replace double backslashes with single backslashes for LaTeX commands
-        // In the parsed JSON string, \\\\ appears as \\, so we replace \\ with \
-        const after = text.replace(/\\\\/g, '\\')
-        if (before !== after) {
-            console.log('🔧 Sanitized:', { before, after })
+        cleaned = cleaned.replace(/\\\\/g, '\\')
+        // Remove unnecessary \textstyle commands
+        cleaned = cleaned.replace(/\\textstyle\s*/g, '')
+        if (text !== cleaned) {
+            console.log('🔧 Sanitized:', { before: text, after: cleaned })
         }
-        return after
+        return cleaned
     }
 
     return {
@@ -159,12 +160,12 @@ Reglas:
   * type "success": todo correcto.
 - FORMATO DE MATEMÁTICAS OBLIGATORIO:
   * SIEMPRE encierra expresiones matemáticas entre delimitadores LaTeX: $...$ para inline o $$...$$ para display.
-  * Usa UN SOLO backslash antes de comandos LaTeX: \\int, \\frac, \\pi (NO \\\\int, NO \\\\frac, NO \\\\pi)
-  * NO uses \\text{} para constantes matemáticas como pi - usa \\pi directamente
-  * El ÚNICO formato JSON permitido es:
+  * Usa UN SOLO backslash antes de comandos LaTeX en el JSON: \\int, \\frac, \\pi
+  * NO uses \\textstyle, \\displaystyle, \\text{}, \\mathrm{} - escribe LaTeX simple
+  * El ÚNICO formato JSON permitido (copia exactamente este formato):
     "explanation": "La integral $$\\int_0^{\\pi} x^2 dx$$ resulta en $$\\frac{\\pi^3}{3}$$"
-  * Ejemplos CORRECTOS: "$$\\int x dx$$", "$\\frac{a}{b}$", "$$\\frac{\\pi^3}{3}$$"
-  * Ejemplos PROHIBIDOS: "$$\\\\int x dx$$", "\\frac{a}{b}" (sin $), "\\text{\\pi}" (usa \\pi)
+  * CORRECTO: "$$\\int_0^{\\pi} x^2 dx$$", "$\\frac{\\pi^3}{3}$"
+  * PROHIBIDO: "$$\\\\int$$", "$$\\textstyle \\\\int$$", "\\frac{a}{b}" (sin $)
 - Proporciona un bounding box preciso para cada anotación (x, y, width, height en rango 0-1).
 - Evita mencionar prolijidad, caligrafía u otros aspectos estéticos.
 - Nunca generes anotaciones superpuestas si puedes agruparlas.
