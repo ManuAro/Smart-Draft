@@ -93,6 +93,12 @@ const CanvasView = () => {
         }
     }
 
+    const exerciseTitle = filename.trim()
+        ? filename.trim()
+        : currentFileId
+            ? 'Ejercicio sin título'
+            : 'Ejercicio nuevo'
+
     return (
         <div className="flex h-screen w-full bg-gray-50 overflow-hidden font-sans text-gray-900">
             {/* Main Content Area */}
@@ -107,7 +113,7 @@ const CanvasView = () => {
                             {displayFolderName}
                         </h1>
                         <span className="text-gray-300">|</span>
-                        <span className="text-sm text-gray-500">Ejercicio 1</span>
+                        <span className="text-sm text-gray-500">{exerciseTitle}</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <button
